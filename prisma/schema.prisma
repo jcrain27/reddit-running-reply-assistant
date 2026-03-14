@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CandidateStatus {
+  NEW
+  DRAFTED
+  REVIEWED
+  APPROVED
+  SUBMITTED
+  SKIPPED
+  ARCHIVED
+  FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SLACK
+}
+
+enum SubmissionMode {
+  MANUAL_COPY
+  DIRECT_SUBMIT
+}
+
+enum DraftFinalAction {
+  NONE
+  COPY
+  SUBMIT
+  SKIP
+  ARCHIVE
+}
+
+enum ScanStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL_FAILURE
+  FAILED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum TrackedCommentSource {
+  DIRECT_SUBMIT
+  MANUAL_TRACK
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AppSettings {
+  id                       String   @id @default("app")
+  scanFrequencyMinutes     Int      @default(15)
+  maxPostAgeHours          Int      @default(24)
+  minAdviceScore           Int      @default(60)
+  notificationThreshold    Int      @default(85)
+  enableDirectSubmit       Boolean  @default(false)
+  enableCTASuggestions     Boolean  @default(false)
+  maxSuggestedRepliesPerDay Int     @default(10)
+  notificationEmailEnabled Boolean  @default(false)
+  notificationSlackEnabled Boolean  @default(false)
+  notificationEmailTo      String?
+  notificationSlackWebhookUrl String?
+  medicalRiskKeywords      Json
+  bannedPhrases            Json
+  candidateStatuses        Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model SubredditConfig {
+  id                       String          @id @default(cuid())
+  name                     String          @unique
+  enabled                  Boolean         @default(true)
+  allowDirectSubmit        Boolean         @default(false)
+  allowCTA                 Boolean         @default(false)
+  strictNoPromo            Boolean         @default(true)
+  maxRepliesPerDay         Int             @default(2)
+  minAdviceScore           Int             @default(60)
+  maxReplyLength           Int             @default(900)
+  advancedTone             Boolean         @default(false)
+  medicalCautionStrictness Int             @default(70)
+  notes                    String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  rules                    SubredditRule[]
+}
+
+model PostCandidate {
+  id                String               @id @default(cuid())
+  redditPostId      String               @unique
+  thingId           String?
+  subreddit         String
+  title             String
+  author            String
+  permalink         String
+  url               String?
+  bodyText          String               @db.Text
+  createdUtc        DateTime
+  fetchedAt         DateTime
+  score             Int?
+  numComments       Int?
+  adviceScore       Int
+  relevanceScore    Int
+  engagementScore   Int
+  priorityScore     Int
+  promoRiskScore    Int
+  medicalRiskScore  Int
+  selectedReason    String               @db.Text
+  status            CandidateStatus      @default(NEW)
+  alreadyReplied    Boolean              @default(false)
+  notificationPriority NotificationPriority @default(NORMAL)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  draftReplies      DraftReply[]
+  notificationEvents NotificationEvent[]
+  replySubmissions  ReplySubmission[]
+  trackedComments   TrackedRedditComment[]
+
+  @@index([subreddit, createdAt])
+  @@index([status, createdAt])
+}
+
+model DraftReply {
+  id                        String           @id @default(cuid())
+  postCandidateId           String
+  modelName                 String
+  systemPromptVersion       String
+  userPromptVersion         String
+  draftText                 String           @db.Text
+  alternateDraftText        String?          @db.Text
+  optionalCTAText           String?          @db.Text
+  ctaAllowed                Boolean          @default(false)
+  confidence                Float
+  generationReasoning       String?          @db.Text
+  safetyWarnings            Json?
+  openingLine               String?
+  duplicateRiskScore        Int              @default(0)
+  promotionalRiskScore      Int              @default(0)
+  medicalCertaintyRiskScore Int              @default(0)
+  humanEditedText           String?          @db.Text
+  finalAction               DraftFinalAction @default(NONE)
+  editDistance              Int?
+  replyShortened            Boolean?
+  toneSoftened              Boolean?
+  ctaRemoved                Boolean?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  postCandidate             PostCandidate    @relation(fields: [postCandidateId], references: [id], onDelete: Cascade)
+  replySubmissions          ReplySubmission[]
+
+  @@index([postCandidateId, createdAt])
+}
+
+model SubredditRule {
+  id                String          @id @default(cuid())
+  subredditConfigId String
+  ruleType          String
+  ruleValue         String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  subredditConfig   SubredditConfig @relation(fields: [subredditConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([subredditConfigId, ruleType, ruleValue])
+}
+
+model NotificationEvent {
+  id             String              @id @default(cuid())
+  postCandidateId String
+  channel        NotificationChannel
+  sentAt         DateTime            @default(now())
+  success        Boolean
+  errorMessage   String?
+  postCandidate  PostCandidate       @relation(fields: [postCandidateId], references: [id], onDelete: Cascade)
+
+  @@index([postCandidateId, sentAt])
+}
+
+model ReplySubmission {
+  id             String         @id @default(cuid())
+  postCandidateId String
+  draftReplyId   String?
+  submissionMode SubmissionMode
+  redditCommentId String?
+  submittedAt    DateTime       @default(now())
+  success        Boolean
+  errorMessage   String?
+  postCandidate  PostCandidate  @relation(fields: [postCandidateId], references: [id], onDelete: Cascade)
+  draftReply     DraftReply?    @relation(fields: [draftReplyId], references: [id], onDelete: SetNull)
+
+  @@index([postCandidateId, submittedAt])
+}
+
+model TrackedRedditComment {
+  id                 String                    @id @default(cuid())
+  postCandidateId    String?
+  commentReplyCandidateId String?
+  redditCommentId    String                    @unique
+  redditThingId      String                    @unique
+  subreddit          String
+  author             String?
+  commentPermalink   String                    @unique
+  parentPostPermalink String
+  parentPostTitle    String?
+  parentPostBody     String?                   @db.Text
+  bodyText           String                    @db.Text
+  source             TrackedCommentSource
+  monitoringEnabled  Boolean                   @default(true)
+  lastCheckedAt      DateTime?
+  lastReplySeenAt    DateTime?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  postCandidate      PostCandidate?            @relation(fields: [postCandidateId], references: [id], onDelete: SetNull)
+  sourceCommentReplyCandidate CommentReplyCandidate? @relation("TrackedCommentFromReplyCandidate", fields: [commentReplyCandidateId], references: [id], onDelete: SetNull)
+  commentReplies     CommentReplyCandidate[]   @relation("RepliesToTrackedComment")
+
+  @@index([subreddit, createdAt])
+  @@index([monitoringEnabled, updatedAt])
+}
+
+model CommentReplyCandidate {
+  id                  String                     @id @default(cuid())
+  trackedCommentId    String
+  redditCommentId     String                     @unique
+  redditThingId       String
+  subreddit           String
+  author              String
+  permalink           String                     @unique
+  parentPostPermalink String
+  parentPostTitle     String?
+  bodyText            String                     @db.Text
+  createdUtc          DateTime
+  fetchedAt           DateTime
+  score               Int?
+  responseIntentScore Int
+  conversationFitScore Int
+  medicalRiskScore    Int
+  priorityScore       Int
+  selectedReason      String                     @db.Text
+  status              CandidateStatus           @default(NEW)
+  notificationPriority NotificationPriority     @default(NORMAL)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  trackedComment      TrackedRedditComment      @relation("RepliesToTrackedComment", fields: [trackedCommentId], references: [id], onDelete: Cascade)
+  trackedResponses    TrackedRedditComment[]    @relation("TrackedCommentFromReplyCandidate")
+  draftReplies        CommentReplyDraft[]
+  notificationEvents  CommentReplyNotificationEvent[]
+  replySubmissions    CommentReplySubmission[]
+
+  @@index([status, createdAt])
+  @@index([trackedCommentId, createdAt])
+}
+
+model CommentReplyDraft {
+  id                        String               @id @default(cuid())
+  commentReplyCandidateId   String
+  modelName                 String
+  systemPromptVersion       String
+  userPromptVersion         String
+  draftText                 String               @db.Text
+  alternateDraftText        String?              @db.Text
+  confidence                Float
+  generationReasoning       String?              @db.Text
+  safetyWarnings            Json?
+  openingLine               String?
+  duplicateRiskScore        Int                  @default(0)
+  promotionalRiskScore      Int                  @default(0)
+  medicalCertaintyRiskScore Int                  @default(0)
+  humanEditedText           String?              @db.Text
+  finalAction               DraftFinalAction     @default(NONE)
+  editDistance              Int?
+  replyShortened            Boolean?
+  toneSoftened              Boolean?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  commentReplyCandidate     CommentReplyCandidate @relation(fields: [commentReplyCandidateId], references: [id], onDelete: Cascade)
+  replySubmissions          CommentReplySubmission[]
+
+  @@index([commentReplyCandidateId, createdAt])
+}
+
+model CommentReplyNotificationEvent {
+  id                    String                @id @default(cuid())
+  commentReplyCandidateId String
+  channel               NotificationChannel
+  sentAt                DateTime              @default(now())
+  success               Boolean
+  errorMessage          String?
+  commentReplyCandidate CommentReplyCandidate @relation(fields: [commentReplyCandidateId], references: [id], onDelete: Cascade)
+
+  @@index([commentReplyCandidateId, sentAt])
+}
+
+model CommentReplySubmission {
+  id                    String                @id @default(cuid())
+  commentReplyCandidateId String
+  commentReplyDraftId   String?
+  submissionMode        SubmissionMode
+  redditCommentId       String?
+  submittedAt           DateTime              @default(now())
+  success               Boolean
+  errorMessage          String?
+  commentReplyCandidate CommentReplyCandidate @relation(fields: [commentReplyCandidateId], references: [id], onDelete: Cascade)
+  commentReplyDraft     CommentReplyDraft?    @relation(fields: [commentReplyDraftId], references: [id], onDelete: SetNull)
+
+  @@index([commentReplyCandidateId, submittedAt])
+}
+
+model ScanRun {
+  id             String     @id @default(cuid())
+  startedAt      DateTime
+  finishedAt     DateTime?
+  scannedCount   Int        @default(0)
+  candidateCount Int        @default(0)
+  draftedCount   Int        @default(0)
+  skippedCount   Int        @default(0)
+  errorCount     Int        @default(0)
+  status         ScanStatus @default(RUNNING)
+  notes          String?    @db.Text
+  triggeredBy    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([createdAt])
+}
+
+model VoiceExample {
+  id        String   @id @default(cuid())
+  label     String
+  sourceType String
+  content   String   @db.Text
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

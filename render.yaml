@@ -1,0 +1,163 @@
+services:
+  - type: web
+    name: reddit-running-reply-assistant
+    runtime: node
+    region: oregon
+    plan: starter
+    autoDeployTrigger: commit
+    healthCheckPath: /login
+    buildCommand: npm install && npm run render-build
+    startCommand: npm run start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: ENABLE_MODEL_SCORING
+        value: "false"
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: REDDIT_USERNAME
+        sync: false
+      - key: REDDIT_PASSWORD
+        sync: false
+      - key: REDDIT_USER_AGENT
+        value: RedditRunningReplyAssistant/0.1 by JohnnyCrain
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_SECURE
+        value: "false"
+      - key: NOTIFY_EMAIL_FROM
+        sync: false
+      - key: NOTIFY_EMAIL_TO
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+
+  - type: cron
+    name: reddit-running-reply-assistant-scan
+    runtime: node
+    region: oregon
+    plan: starter
+    schedule: "*/15 * * * *"
+    autoDeployTrigger: commit
+    buildCommand: npm install && npm run prisma:generate
+    startCommand: npm run cron:scan
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: DATABASE_URL
+      - key: OPENAI_API_KEY
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: OPENAI_API_KEY
+      - key: OPENAI_MODEL
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: OPENAI_MODEL
+      - key: OPENAI_BASE_URL
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: OPENAI_BASE_URL
+      - key: ENABLE_MODEL_SCORING
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: ENABLE_MODEL_SCORING
+      - key: APP_BASE_URL
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: APP_BASE_URL
+      - key: REDDIT_CLIENT_ID
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: REDDIT_CLIENT_ID
+      - key: REDDIT_CLIENT_SECRET
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: REDDIT_CLIENT_SECRET
+      - key: REDDIT_USERNAME
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: REDDIT_USERNAME
+      - key: REDDIT_PASSWORD
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: REDDIT_PASSWORD
+      - key: REDDIT_USER_AGENT
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: REDDIT_USER_AGENT
+      - key: SMTP_HOST
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SMTP_HOST
+      - key: SMTP_PORT
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SMTP_PORT
+      - key: SMTP_USER
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SMTP_USER
+      - key: SMTP_PASS
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SMTP_PASS
+      - key: SMTP_SECURE
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SMTP_SECURE
+      - key: NOTIFY_EMAIL_FROM
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: NOTIFY_EMAIL_FROM
+      - key: NOTIFY_EMAIL_TO
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: NOTIFY_EMAIL_TO
+      - key: SLACK_WEBHOOK_URL
+        fromService:
+          type: web
+          name: reddit-running-reply-assistant
+          envVarKey: SLACK_WEBHOOK_URL
