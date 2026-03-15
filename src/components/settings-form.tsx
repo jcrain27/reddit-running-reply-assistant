@@ -527,7 +527,11 @@ export function SettingsForm({ initialData }: { initialData: SettingsPayload }) 
             <h2 className="page-title" style={{ fontSize: "1.4rem" }}>
               Johnny Voice Examples
             </h2>
-            <p className="page-copy">These examples guide draft tone now and can support future prompt tuning later.</p>
+            <p className="page-copy">
+              These examples guide draft tone now and can support future prompt tuning later.
+              Use source types like `story`, `experience`, or `anecdote` for short real story fragments.
+              The app should use those sparingly and never invent first-hand details that are not true.
+            </p>
           </div>
           <button type="button" className="button" onClick={saveVoiceExamples} disabled={savingVoice}>
             {savingVoice ? "Saving..." : "Save Voice Examples"}

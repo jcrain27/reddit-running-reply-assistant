@@ -31,10 +31,22 @@ interface DraftModelResponse {
   reasoning: string;
 }
 
+function isStoryLikeSourceType(sourceType: string) {
+  return /\b(story|anecdote|experience|case)\b/i.test(sourceType);
+}
+
 function buildVoiceContext(voiceExamples: VoiceExample[]) {
   return voiceExamples
-    .filter((example) => example.enabled)
+    .filter((example) => example.enabled && !isStoryLikeSourceType(example.sourceType))
     .slice(0, 6)
+    .map((example) => `- ${example.label}: ${normalizeWhitespace(example.content)}`)
+    .join("\n");
+}
+
+function buildStoryContext(voiceExamples: VoiceExample[]) {
+  return voiceExamples
+    .filter((example) => example.enabled && isStoryLikeSourceType(example.sourceType))
+    .slice(0, 4)
     .map((example) => `- ${example.label}: ${normalizeWhitespace(example.content)}`)
     .join("\n");
 }
@@ -194,6 +206,7 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
     input.appSettings.enableCTASuggestions &&
     input.config.allowCTA &&
     !input.config.strictNoPromo;
+  const storyContext = buildStoryContext(input.voiceExamples);
 
   const recentOpenings = input.recentDrafts
     .map((draft) => draft.openingLine || extractFirstLine(draft.draftText))
@@ -209,6 +222,9 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
     "Avoid repetitive openings and avoid hard-selling coaching.",
     "Teach through principles, not slogans or hype.",
     "Use a calm coaching structure when possible: identify the real issue, explain the principle underneath it, then give one useful next step.",
+    "A brief story or lived observation can help, but only when it feels natural and only if it comes from the provided real experience fragments.",
+    "Never invent personal anecdotes, client stories, race results, or first-hand coaching experience just to sound human.",
+    "If no real experience fragment fits, use a grounded observation instead of pretending.",
     `Core teaching principles:\n${buildTeachingPrinciplesContext()}`,
     input.ruleContext?.defaultReplyStyle
       ? `Follow this subreddit's preferred style: ${input.ruleContext.defaultReplyStyle}.`
@@ -245,6 +261,7 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
       recentOpenings,
       subredditNotes: input.config.notes ?? "",
       voiceExamples: buildVoiceContext(input.voiceExamples),
+      storyExamples: storyContext || null,
       ruleHints: input.ruleContext
         ? {
             defaultReplyStyle: input.ruleContext.defaultReplyStyle,
@@ -257,6 +274,7 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
     "Return concise replies. Keep most replies to concise or medium length.",
     "If the runner seems reactive, reduce drama and steer them toward a steadier interpretation of the situation.",
     "If the post includes injury or medical uncertainty, stay cautious and point toward professional care for red flags.",
+    "If you use a story, keep it brief, specific, and honest. One sentence is usually enough.",
     "Never use repetitive opening lines from the recentOpenings list."
   ].join("\n\n");
 

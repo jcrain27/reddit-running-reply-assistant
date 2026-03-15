@@ -142,6 +142,20 @@ async function main() {
         "Treat routines as helpful but not destiny. When conditions feel off, stay calm, avoid catastrophizing, and focus on the next workable adjustment instead of the perfect plan."
     },
     {
+      label: "Real coaching story fragment template",
+      sourceType: "story",
+      content:
+        "Example format: I see this a lot with runners who turn every easy day into a medium day. Once they truly back off for 10 to 14 days, workouts usually start clicking again. Only use real patterns Johnny can honestly stand behind.",
+      enabled: false
+    },
+    {
+      label: "Real runner perspective template",
+      sourceType: "experience",
+      content:
+        "Example format: When I have rushed a build, the biggest mistake was trying to prove fitness too early. Keep this limited to things Johnny has actually experienced or genuinely observed.",
+      enabled: false
+    },
+    {
       label: "Principle then next step",
       sourceType: "seed",
       content:
@@ -175,7 +189,7 @@ async function main() {
         label: example.label,
         sourceType: example.sourceType,
         content: example.content,
-        enabled: true
+        enabled: example.enabled ?? true
       }
     });
   }

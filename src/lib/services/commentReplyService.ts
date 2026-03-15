@@ -165,9 +165,19 @@ function buildTeachingPrinciplesContext() {
   return DEFAULT_COACHING_PRINCIPLES.map((principle) => `- ${principle}`).join("\n");
 }
 
+function isStoryLikeSourceType(sourceType: string) {
+  return /\b(story|anecdote|experience|case)\b/i.test(sourceType);
+}
+
 export async function generateCommentReplyDraft(input: {
   reply: RedditComment;
   trackedComment: TrackedRedditComment;
+  voiceExamples?: Array<{
+    sourceType: string;
+    label: string;
+    content: string;
+    enabled?: boolean;
+  }>;
   recentDrafts: Array<{
     draftText: string;
     openingLine?: string | null;
@@ -175,6 +185,11 @@ export async function generateCommentReplyDraft(input: {
   subredditContext: Awaited<ReturnType<typeof buildEffectiveSubredditSettings>>;
 }) : Promise<CommentReplyDraftGenerationResult> {
   const env = getEnv();
+  const storyContext = (input.voiceExamples ?? [])
+    .filter((example) => (example.enabled ?? true) && isStoryLikeSourceType(example.sourceType))
+    .slice(0, 4)
+    .map((example) => `- ${example.label}: ${normalizeWhitespace(example.content)}`)
+    .join("\n");
   const systemPrompt = [
     "You draft Reddit follow-up comments for Johnny Crain at RunFitCoach.",
     "This is a reply in an ongoing comment thread, not a first-touch top-level reply.",
@@ -185,6 +200,8 @@ export async function generateCommentReplyDraft(input: {
     "Do not diagnose or act medically certain.",
     "Teach through principles, not hype.",
     "For follow-up replies, keep the conversation natural: answer what the person actually said, name the principle underneath it, and give one practical next step or clarification.",
+    "A brief story or lived observation can help, but only when it comes from the provided real experience fragments.",
+    "Never invent personal anecdotes, client stories, or first-hand coaching experience to sound more human.",
     `Core teaching principles:\n${buildTeachingPrinciplesContext()}`,
     input.subredditContext.defaultReplyStyle
       ? `Style preference: ${input.subredditContext.defaultReplyStyle}.`
@@ -205,6 +222,7 @@ export async function generateCommentReplyDraft(input: {
     recentOpenings: input.recentDrafts
       .map((draft) => draft.openingLine || draft.draftText)
       .slice(0, 10),
+    storyExamples: storyContext || null,
     bannedPhrases: input.subredditContext.bannedPhrases.slice(0, 12)
   });
 
@@ -434,13 +452,17 @@ export async function trackManualCommentForCommentReplyCandidate(input: {
 }
 
 export async function processTrackedCommentReplies() {
-  const [trackedComments, appSettings] = await Promise.all([
+  const [trackedComments, appSettings, voiceExamples] = await Promise.all([
     prisma.trackedRedditComment.findMany({
       where: { monitoringEnabled: true },
       orderBy: { updatedAt: "desc" },
       take: 100
     }),
-    getAppSettings()
+    getAppSettings(),
+    prisma.voiceExample.findMany({
+      where: { enabled: true },
+      orderBy: [{ sourceType: "asc" }, { updatedAt: "desc" }]
+    })
   ]);
 
   let scannedReplies = 0;
@@ -538,6 +560,7 @@ export async function processTrackedCommentReplies() {
         const draft = await generateCommentReplyDraft({
           reply,
           trackedComment,
+          voiceExamples,
           recentDrafts,
           subredditContext
         });
@@ -660,7 +683,7 @@ export async function regenerateCommentReplyDraft(input: {
     throw new Error("Reply candidate not found.");
   }
 
-  const [appSettings, recentDrafts, config] = await Promise.all([
+  const [appSettings, recentDrafts, config, voiceExamples] = await Promise.all([
     getAppSettings(),
     prisma.commentReplyDraft.findMany({
       orderBy: { createdAt: "desc" },
@@ -673,6 +696,10 @@ export async function regenerateCommentReplyDraft(input: {
     prisma.subredditConfig.findUnique({
       where: { name: candidate.subreddit },
       include: { rules: true }
+    }),
+    prisma.voiceExample.findMany({
+      where: { enabled: true },
+      orderBy: [{ sourceType: "asc" }, { updatedAt: "desc" }]
     })
   ]);
 
@@ -696,6 +723,7 @@ export async function regenerateCommentReplyDraft(input: {
       score: candidate.score ?? 0
     },
     trackedComment: candidate.trackedComment,
+    voiceExamples,
     recentDrafts,
     subredditContext
   });
