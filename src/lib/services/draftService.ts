@@ -1,6 +1,6 @@
 import type { SubredditConfig, VoiceExample } from "@prisma/client";
 
-import { DEFAULT_PROMPT_VERSIONS } from "@/lib/constants";
+import { DEFAULT_COACHING_PRINCIPLES, DEFAULT_PROMPT_VERSIONS } from "@/lib/constants";
 import { getEnv } from "@/lib/env";
 import { createStructuredCompletion } from "@/lib/services/openaiClient";
 import type { EffectiveSubredditSettings } from "@/lib/services/subredditRulesService";
@@ -37,6 +37,10 @@ function buildVoiceContext(voiceExamples: VoiceExample[]) {
     .slice(0, 6)
     .map((example) => `- ${example.label}: ${normalizeWhitespace(example.content)}`)
     .join("\n");
+}
+
+function buildTeachingPrinciplesContext() {
+  return DEFAULT_COACHING_PRINCIPLES.map((principle) => `- ${principle}`).join("\n");
 }
 
 function inferFallbackTopic(post: RedditPost) {
@@ -203,6 +207,9 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
     "Helpful first. Default to no CTA unless it is truly natural and subtle.",
     "Do not diagnose or act medically certain.",
     "Avoid repetitive openings and avoid hard-selling coaching.",
+    "Teach through principles, not slogans or hype.",
+    "Use a calm coaching structure when possible: identify the real issue, explain the principle underneath it, then give one useful next step.",
+    `Core teaching principles:\n${buildTeachingPrinciplesContext()}`,
     input.ruleContext?.defaultReplyStyle
       ? `Follow this subreddit's preferred style: ${input.ruleContext.defaultReplyStyle}.`
       : "",
@@ -248,6 +255,7 @@ export async function generateDraft(input: GenerateDraftInput): Promise<DraftGen
         : null
     }),
     "Return concise replies. Keep most replies to concise or medium length.",
+    "If the runner seems reactive, reduce drama and steer them toward a steadier interpretation of the situation.",
     "If the post includes injury or medical uncertainty, stay cautious and point toward professional care for red flags.",
     "Never use repetitive opening lines from the recentOpenings list."
   ].join("\n\n");

@@ -107,9 +107,19 @@ export const MEDICAL_CERTAINTY_PHRASES = [
   "you should take this medication"
 ];
 
+export const DEFAULT_COACHING_PRINCIPLES = [
+  "Teach through principles, not hacks, bravado, or hot takes.",
+  "Bias toward consistency and repeatable weeks over heroic single workouts.",
+  "Favor adaptable, durable training over rigid routines and perfectionism.",
+  "Do not overreact to one bad run, one bad workout, or one bad feeling.",
+  "Name the underlying principle, then give one practical next step.",
+  "Stay calm, evidence-aware, and nuanced instead of absolute or dramatic.",
+  "Focus on what the runner can control next."
+] as const;
+
 export const DEFAULT_PROMPT_VERSIONS = {
-  system: "2026-03-13.1",
-  user: "2026-03-13.1"
+  system: "2026-03-15.1",
+  user: "2026-03-15.1"
 } as const;
 
 export const MAX_RECENT_DRAFTS_FOR_SIMILARITY = 50;

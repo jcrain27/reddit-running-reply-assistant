@@ -10,7 +10,11 @@ import {
 
 import { prisma } from "@/lib/db";
 import { getEnv } from "@/lib/env";
-import { DEFAULT_PROMPT_VERSIONS, MAX_RECENT_DRAFTS_FOR_SIMILARITY } from "@/lib/constants";
+import {
+  DEFAULT_COACHING_PRINCIPLES,
+  DEFAULT_PROMPT_VERSIONS,
+  MAX_RECENT_DRAFTS_FOR_SIMILARITY
+} from "@/lib/constants";
 import { createStructuredCompletion } from "@/lib/services/openaiClient";
 import { dispatchReplyNotifications } from "@/lib/services/notificationService";
 import {
@@ -157,6 +161,10 @@ function inferReplyFallbackType(reply: RedditComment) {
   return "general";
 }
 
+function buildTeachingPrinciplesContext() {
+  return DEFAULT_COACHING_PRINCIPLES.map((principle) => `- ${principle}`).join("\n");
+}
+
 export async function generateCommentReplyDraft(input: {
   reply: RedditComment;
   trackedComment: TrackedRedditComment;
@@ -175,6 +183,9 @@ export async function generateCommentReplyDraft(input: {
     "Answer the actual comment that came in.",
     "No selling. No CTA unless the human later adds one manually.",
     "Do not diagnose or act medically certain.",
+    "Teach through principles, not hype.",
+    "For follow-up replies, keep the conversation natural: answer what the person actually said, name the principle underneath it, and give one practical next step or clarification.",
+    `Core teaching principles:\n${buildTeachingPrinciplesContext()}`,
     input.subredditContext.defaultReplyStyle
       ? `Style preference: ${input.subredditContext.defaultReplyStyle}.`
       : "",
