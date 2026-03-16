@@ -7,19 +7,45 @@ import { StatusBadge } from "@/components/status-badge";
 import { requireSession } from "@/lib/auth";
 import { listCandidates } from "@/lib/repositories/candidateRepository";
 import { getAnalyticsSummary } from "@/lib/services/analyticsService";
-import { formatAge, truncate } from "@/lib/utils";
+import { formatAge, safeParseNumber, truncate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+const DEFAULT_RECENT_WINDOW_HOURS = 24;
 
 export default async function InboxPage({
   searchParams
 }: {
-  searchParams?: Promise<{ status?: CandidateStatus }>;
+  searchParams?: Promise<{
+    status?: CandidateStatus | string;
+    q?: string;
+    maxAgeHours?: string;
+  }>;
 }) {
   await requireSession();
   const params = (await searchParams) || {};
-  const candidates = await listCandidates(params.status);
+  const status =
+    typeof params.status === "string" && params.status in CandidateStatus
+      ? (params.status as CandidateStatus)
+      : undefined;
+  const search = typeof params.q === "string" ? params.q.trim() : "";
+  const maxAgeHours = Math.min(safeParseNumber(params.maxAgeHours, DEFAULT_RECENT_WINDOW_HOURS), 24);
+  const candidates = await listCandidates({
+    status,
+    search,
+    maxAgeHours
+  });
   const analytics = await getAnalyticsSummary();
+  const actionableCandidates = candidates.filter(
+    (candidate) =>
+      candidate.status === CandidateStatus.NEW ||
+      candidate.status === CandidateStatus.DRAFTED ||
+      candidate.status === CandidateStatus.REVIEWED ||
+      candidate.status === CandidateStatus.APPROVED
+  );
+  const focusCandidates = actionableCandidates
+    .filter((candidate) => candidate.medicalRiskScore < 60)
+    .slice(0, 3);
 
   return (
     <div className="page">
@@ -53,6 +79,60 @@ export default async function InboxPage({
       </div>
 
       <div className="panel">
+        <form className="form-grid" action="/inbox" method="get" style={{ marginBottom: 20 }}>
+          <div className="page-header">
+            <div>
+              <h2 className="page-title" style={{ fontSize: "1.35rem" }}>
+                Recent Posts
+              </h2>
+              <p className="page-copy">
+                Search only fresh candidates. Anything older than 24 hours stays out of this inbox.
+              </p>
+            </div>
+            <div className="toolbar">
+              <button type="submit" className="button">
+                Update Inbox
+              </button>
+              <Link href="/inbox" className="button-ghost">
+                Reset
+              </Link>
+            </div>
+          </div>
+
+          <div className="fields-3">
+            <div className="field">
+              <label>Search recent posts</label>
+              <input
+                type="search"
+                name="q"
+                defaultValue={search}
+                placeholder="Search title, body, author, or subreddit"
+              />
+            </div>
+            <div className="field">
+              <label>Recent window</label>
+              <select name="maxAgeHours" defaultValue={String(maxAgeHours)}>
+                {[6, 12, 18, 24].map((hours) => (
+                  <option key={hours} value={hours}>
+                    Last {hours} hours
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Status</label>
+              <select name="status" defaultValue={status ?? ""}>
+                <option value="">All statuses</option>
+                {Object.values(CandidateStatus).map((candidateStatus) => (
+                  <option key={candidateStatus} value={candidateStatus}>
+                    {candidateStatus}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </form>
+
         <div className="toolbar" style={{ marginBottom: 16 }}>
           {[
             ["All", "/inbox"],
@@ -65,6 +145,58 @@ export default async function InboxPage({
               {label}
             </Link>
           ))}
+        </div>
+
+        <div className="split-list" style={{ marginBottom: 20 }}>
+          <div className="notice">
+            Showing {candidates.length} candidate{candidates.length === 1 ? "" : "s"} from the last {maxAgeHours} hours.
+          </div>
+          <div className="notice">
+            Focus today: {focusCandidates.length} best post{focusCandidates.length === 1 ? "" : "s"} to review first.
+          </div>
+        </div>
+
+        <div className="panel panel-tight" style={{ marginBottom: 20 }}>
+          <div className="page-header">
+            <div>
+              <h2 className="page-title" style={{ fontSize: "1.25rem" }}>
+                Top 3 To Review Today
+              </h2>
+              <p className="page-copy">
+                Start here and stop after 2-3 strong replies unless someone follows up in a thread.
+              </p>
+            </div>
+          </div>
+
+          <div className="split-list">
+            {focusCandidates.length ? (
+              focusCandidates.map((candidate) => (
+                <div key={candidate.id} className="notice">
+                  <div className="page-header" style={{ alignItems: "center" }}>
+                    <div>
+                      <strong>
+                        r/{candidate.subreddit}: {candidate.title}
+                      </strong>
+                      <div className="table-subtle" style={{ marginTop: 6 }}>
+                        {truncate(candidate.selectedReason, 150)}
+                      </div>
+                    </div>
+                    <div className="toolbar">
+                      <StatusBadge label={`Priority ${candidate.priorityScore}`} tone="success" />
+                      <StatusBadge label={formatAge(candidate.createdUtc)} />
+                      <Link href={`/candidates/${candidate.id}`} className="button-ghost">
+                        Review
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="notice">
+                No strong fresh candidates right now. Run a scan later or widen the search terms, but keep the 24-hour cap.
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="table-wrap">

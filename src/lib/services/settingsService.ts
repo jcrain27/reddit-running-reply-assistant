@@ -51,6 +51,10 @@ export interface VoiceExampleInput {
   enabled: boolean;
 }
 
+function clampMaxPostAgeHours(value: number) {
+  return Math.min(Math.max(value, 1), 24);
+}
+
 function toStringArray(value: Prisma.JsonValue | null | undefined, fallback: string[]): string[] {
   if (!Array.isArray(value)) {
     return fallback;
@@ -69,6 +73,7 @@ export async function getAppSettings() {
   if (existing) {
     return {
       ...existing,
+      maxPostAgeHours: clampMaxPostAgeHours(existing.maxPostAgeHours),
       bannedPhrases: toStringArray(existing.bannedPhrases, DEFAULT_BANNED_PHRASES),
       medicalRiskKeywords: toStringArray(
         existing.medicalRiskKeywords,
@@ -137,7 +142,7 @@ export async function saveSettings(input: SaveSettingsInput) {
       where: { id: "app" },
       update: {
         scanFrequencyMinutes: input.appSettings.scanFrequencyMinutes,
-        maxPostAgeHours: input.appSettings.maxPostAgeHours,
+        maxPostAgeHours: clampMaxPostAgeHours(input.appSettings.maxPostAgeHours),
         minAdviceScore: input.appSettings.minAdviceScore,
         notificationThreshold: input.appSettings.notificationThreshold,
         enableDirectSubmit: input.appSettings.enableDirectSubmit,
@@ -155,7 +160,7 @@ export async function saveSettings(input: SaveSettingsInput) {
       create: {
         id: "app",
         scanFrequencyMinutes: input.appSettings.scanFrequencyMinutes,
-        maxPostAgeHours: input.appSettings.maxPostAgeHours,
+        maxPostAgeHours: clampMaxPostAgeHours(input.appSettings.maxPostAgeHours),
         minAdviceScore: input.appSettings.minAdviceScore,
         notificationThreshold: input.appSettings.notificationThreshold,
         enableDirectSubmit: input.appSettings.enableDirectSubmit,

@@ -172,16 +172,18 @@ export function SettingsForm({ initialData }: { initialData: SettingsPayload }) 
             </div>
 
             <div className="field">
-              <label>Max post age (hours)</label>
+              <label>Max post age (hours, up to 24)</label>
               <input
                 type="number"
+                min={1}
+                max={24}
                 value={settings.appSettings.maxPostAgeHours}
                 onChange={(event) =>
                   setSettings((current) => ({
                     ...current,
                     appSettings: {
                       ...current.appSettings,
-                      maxPostAgeHours: Number(event.target.value)
+                      maxPostAgeHours: Math.min(Number(event.target.value), 24)
                     }
                   }))
                 }

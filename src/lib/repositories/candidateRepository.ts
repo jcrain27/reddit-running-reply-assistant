@@ -2,9 +2,63 @@ import { CandidateStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 
-export async function listCandidates(status?: CandidateStatus) {
+const DEFAULT_RECENT_WINDOW_HOURS = 24;
+
+function clampRecentWindow(value?: number) {
+  if (!value || !Number.isFinite(value)) {
+    return DEFAULT_RECENT_WINDOW_HOURS;
+  }
+
+  return Math.min(Math.max(Math.floor(value), 1), DEFAULT_RECENT_WINDOW_HOURS);
+}
+
+export async function listCandidates(options?: {
+  status?: CandidateStatus;
+  search?: string;
+  maxAgeHours?: number;
+  take?: number;
+}) {
+  const recentWindowHours = clampRecentWindow(options?.maxAgeHours);
+  const createdAfter = new Date(Date.now() - recentWindowHours * 3_600_000);
+  const search = options?.search?.trim();
+
   return prisma.postCandidate.findMany({
-    where: status ? { status } : undefined,
+    where: {
+      ...(options?.status ? { status: options.status } : {}),
+      createdUtc: {
+        gte: createdAfter
+      },
+      ...(search
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: search,
+                  mode: "insensitive"
+                }
+              },
+              {
+                bodyText: {
+                  contains: search,
+                  mode: "insensitive"
+                }
+              },
+              {
+                author: {
+                  contains: search,
+                  mode: "insensitive"
+                }
+              },
+              {
+                subreddit: {
+                  contains: search,
+                  mode: "insensitive"
+                }
+              }
+            ]
+          }
+        : {})
+    },
     include: {
       draftReplies: {
         orderBy: { createdAt: "desc" },
@@ -19,6 +73,7 @@ export async function listCandidates(status?: CandidateStatus) {
         take: 1
       }
     },
+    take: options?.take,
     orderBy: [
       { priorityScore: "desc" },
       { createdAt: "desc" }

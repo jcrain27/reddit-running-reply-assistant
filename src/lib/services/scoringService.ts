@@ -145,6 +145,7 @@ export async function scorePostCandidate(params: {
   const { post, config, appSettings } = params;
   const combinedText = normalizeWhitespace(`${post.title} ${post.selftext}`);
   const ageHours = (Date.now() - post.createdUtc * 1000) / 3_600_000;
+  const maxPostAgeHours = Math.min(Math.max(appSettings.maxPostAgeHours, 1), 24);
 
   const heuristic: ScoreBreakdown = {
     adviceScore: calculateAdviceScoreWithBoosts(
@@ -156,7 +157,7 @@ export async function scorePostCandidate(params: {
       config.name,
       appSettings.relevanceBoostKeywords ?? []
     ),
-    engagementScore: calculateEngagementScore(post, appSettings.maxPostAgeHours),
+    engagementScore: calculateEngagementScore(post, maxPostAgeHours),
     promoRiskScore: calculatePromoRisk(combinedText, config),
     medicalRiskScore: calculateMedicalRisk(
       combinedText,
@@ -190,7 +191,7 @@ export async function scorePostCandidate(params: {
   score.shouldDraft =
     !post.removedByCategory &&
     post.author !== "[deleted]" &&
-    ageHours <= appSettings.maxPostAgeHours &&
+    ageHours <= maxPostAgeHours &&
     score.adviceScore >= Math.max(config.minAdviceScore, appSettings.minAdviceScore) &&
     score.medicalRiskScore < config.medicalCautionStrictness;
 

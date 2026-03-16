@@ -21,7 +21,7 @@ const subredditSchema = z.object({
 const saveSettingsSchema = z.object({
   appSettings: z.object({
     scanFrequencyMinutes: z.number().int().min(1),
-    maxPostAgeHours: z.number().int().min(1),
+    maxPostAgeHours: z.number().int().min(1).max(24),
     minAdviceScore: z.number().int().min(0).max(100),
     notificationThreshold: z.number().int().min(0).max(100),
     enableDirectSubmit: z.boolean(),
