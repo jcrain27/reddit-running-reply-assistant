@@ -10,6 +10,10 @@ import {
 import { prisma } from "../src/lib/db";
 import { getEnv } from "../src/lib/env";
 
+function voiceExampleId(label: string) {
+  return label.toLowerCase().replace(/\s+/g, "-");
+}
+
 async function main() {
   const env = getEnv();
 
@@ -162,6 +166,54 @@ async function main() {
         "When possible, structure the reply in three moves: identify the real issue, explain the principle underneath it, and give one practical next step the runner can use immediately."
     },
     {
+      label: "Johnny story - bad race to commitment",
+      sourceType: "story",
+      content:
+        "A bad race can either rattle you or sharpen you. Some of the best progress comes after being honest about what fell short and then getting more consistent about fixing it."
+    },
+    {
+      label: "Johnny story - healthy boring weeks matter",
+      sourceType: "experience",
+      content:
+        "Injury changes how you value training. Sometimes the real win is not one huge workout, it is stacking several healthy, boring weeks in a row."
+    },
+    {
+      label: "Johnny story - discipline over motivation",
+      sourceType: "experience",
+      content:
+        "I trust discipline more than motivation. Motivation comes and goes, but progress usually comes from showing up when the work feels ordinary."
+    },
+    {
+      label: "Johnny story - team culture matters",
+      sourceType: "story",
+      content:
+        "A lot of growth happens in environments where consistency feels normal. Even in an individual sport, the people around you can raise the standard for how steady your work becomes."
+    },
+    {
+      label: "Johnny story - simple coaching works",
+      sourceType: "experience",
+      content:
+        "Most runners do not need a fancier plan. They need a plan that fits real life, gets adjusted when life changes, and helps them string together solid weeks."
+    },
+    {
+      label: "Johnny story - comeback runners",
+      sourceType: "story",
+      content:
+        "Some of the best progress I have seen comes after layoffs, kids, or messy training seasons. The breakthrough is usually not doing everything, it is doing the right things repeatably."
+    },
+    {
+      label: "Johnny story - recovery tools are tools",
+      sourceType: "experience",
+      content:
+        "Recovery tools can help, but they are still tools. If something simple helps you absorb training and feel better for the next good session, it can be useful without pretending it replaces the actual work."
+    },
+    {
+      label: "Johnny story - run is part of life",
+      sourceType: "experience",
+      content:
+        "Running works best when it fits the rest of your life instead of fighting it all the time. A good plan should support the whole week, not just the perfect day."
+    },
+    {
       label: "Beginner-friendly voice",
       sourceType: "seed",
       content:
@@ -176,16 +228,17 @@ async function main() {
   ];
 
   for (const example of voiceExamples) {
+    const id = voiceExampleId(example.label);
     await prisma.voiceExample.upsert({
-      where: {
-        id: `${example.label.toLowerCase().replace(/\s+/g, "-")}`
-      },
+      where: { id },
       update: {
+        label: example.label,
+        sourceType: example.sourceType,
         content: example.content,
-        enabled: true
+        enabled: example.enabled ?? true
       },
       create: {
-        id: `${example.label.toLowerCase().replace(/\s+/g, "-")}`,
+        id,
         label: example.label,
         sourceType: example.sourceType,
         content: example.content,
