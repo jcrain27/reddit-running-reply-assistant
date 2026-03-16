@@ -49,8 +49,8 @@ async function main() {
       update: {},
       create: {
         name: subreddit,
-        allowCTA: subreddit !== "advancedrunning",
-        strictNoPromo: subreddit === "advancedrunning",
+        allowCTA: !["advancedrunning", "beginnerrunning", "ultramarathon"].includes(subreddit),
+        strictNoPromo: ["advancedrunning", "beginnerrunning", "ultramarathon"].includes(subreddit),
         advancedTone: subreddit === "advancedrunning"
       }
     });
@@ -77,6 +77,21 @@ async function main() {
       ruleValue: "coach here"
     },
     {
+      subreddit: "beginnerrunning",
+      ruleType: "style_hint",
+      ruleValue: "Keep the answer simple, practical, and reassuring. Prefer one clear next step over a long explanation."
+    },
+    {
+      subreddit: "beginnerrunning",
+      ruleType: "default_reply_style",
+      ruleValue: "beginner-friendly, encouraging, concise"
+    },
+    {
+      subreddit: "beginnerrunning",
+      ruleType: "banned_phrase",
+      ruleValue: "coach here"
+    },
+    {
       subreddit: "firstmarathon",
       ruleType: "style_hint",
       ruleValue: "Simplify jargon and keep the advice reassuring but practical."
@@ -90,6 +105,21 @@ async function main() {
       subreddit: "trailrunning",
       ruleType: "style_hint",
       ruleValue: "Acknowledge terrain, elevation, and pacing variability on trails."
+    },
+    {
+      subreddit: "ultramarathon",
+      ruleType: "style_hint",
+      ruleValue: "Account for fueling, terrain, and time-on-feet. Keep the tone practical and avoid oversimplifying ultra-specific tradeoffs."
+    },
+    {
+      subreddit: "ultramarathon",
+      ruleType: "default_reply_style",
+      ruleValue: "experienced, calm, practical"
+    },
+    {
+      subreddit: "ultramarathon",
+      ruleType: "advice_boost_keyword",
+      ruleValue: "fueling"
     }
   ];
 

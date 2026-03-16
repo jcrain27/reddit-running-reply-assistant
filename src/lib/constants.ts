@@ -1,9 +1,11 @@
 export const DEFAULT_SUBREDDITS = [
   "running",
+  "beginnerrunning",
   "advancedrunning",
   "marathon_training",
   "trailrunning",
-  "firstmarathon"
+  "firstmarathon",
+  "ultramarathon"
 ] as const;
 
 export const CANDIDATE_STATUSES = [
@@ -51,6 +53,10 @@ export const ADVICE_INTENT_PHRASES = [
   "half marathon",
   "5k",
   "10k",
+  "50k",
+  "50 miler",
+  "100k",
+  "100 miler",
   "injury",
   "sore",
   "recovery",
@@ -60,7 +66,10 @@ export const ADVICE_INTENT_PHRASES = [
   "tempo",
   "mileage",
   "plan",
-  "coach"
+  "coach",
+  "fueling",
+  "couch to 5k",
+  "run walk"
 ];
 
 export const EXPERTISE_KEYWORDS = [
@@ -71,6 +80,10 @@ export const EXPERTISE_KEYWORDS = [
   "half marathon",
   "5k",
   "10k",
+  "50k",
+  "50 miler",
+  "100k",
+  "100 miler",
   "mileage",
   "easy run",
   "long run",
@@ -83,7 +96,15 @@ export const EXPERTISE_KEYWORDS = [
   "workout",
   "race strategy",
   "strength",
-  "trail"
+  "trail",
+  "ultra",
+  "ultramarathon",
+  "fueling",
+  "aid station",
+  "vert",
+  "elevation gain",
+  "couch to 5k",
+  "run walk"
 ];
 
 export const PROMO_RISK_PHRASES = [
