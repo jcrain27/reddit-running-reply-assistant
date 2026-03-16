@@ -8,7 +8,7 @@ export function CandidateRowActions({ candidateId }: { candidateId: string }) {
   const router = useRouter();
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  async function handleAction(action: "regenerate" | "archive" | "skip") {
+  async function handleAction(action: "regenerate" | "archive" | "skip" | "dismiss") {
     setBusyAction(action);
 
     await fetch(`/api/candidates/${candidateId}/${action}`, {
@@ -39,6 +39,14 @@ export function CandidateRowActions({ candidateId }: { candidateId: string }) {
         disabled={busyAction !== null}
       >
         Skip
+      </button>
+      <button
+        type="button"
+        className="button-ghost"
+        onClick={() => handleAction("dismiss")}
+        disabled={busyAction !== null}
+      >
+        {busyAction === "dismiss" ? "Dismissing..." : "Dismiss"}
       </button>
       <button
         type="button"

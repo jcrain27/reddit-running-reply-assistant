@@ -2,6 +2,7 @@ import { CandidateStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { CandidateRowActions } from "@/components/candidate-row-actions";
+import { DismissCandidateButton } from "@/components/dismiss-candidate-button";
 import { RunScanButton } from "@/components/run-scan-button";
 import { StatusBadge } from "@/components/status-badge";
 import { requireSession } from "@/lib/auth";
@@ -184,6 +185,7 @@ export default async function InboxPage({
                     <div className="toolbar">
                       <StatusBadge label={`Priority ${candidate.priorityScore}`} tone="success" />
                       <StatusBadge label={formatAge(candidate.createdUtc)} />
+                      <DismissCandidateButton candidateId={candidate.id} />
                       <Link href={`/candidates/${candidate.id}`} className="button-ghost">
                         Review
                       </Link>
