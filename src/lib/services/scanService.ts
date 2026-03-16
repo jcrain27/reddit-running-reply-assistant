@@ -12,6 +12,7 @@ import { DEFAULT_PROMPT_VERSIONS, MAX_RECENT_DRAFTS_FOR_SIMILARITY } from "@/lib
 import { generateDraft } from "@/lib/services/draftService";
 import { processTrackedCommentReplies } from "@/lib/services/commentReplyService";
 import { dispatchNotifications } from "@/lib/services/notificationService";
+import { getSubredditPreferenceAdjustments } from "@/lib/services/preferenceService";
 import { fetchLatestPosts } from "@/lib/services/redditClient";
 import { validateDraft } from "@/lib/services/safetyService";
 import { scorePostCandidate } from "@/lib/services/scoringService";
@@ -41,7 +42,7 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
   };
 
   try {
-    const [appSettings, subreddits, voiceExamples, recentDrafts] = await Promise.all([
+    const [appSettings, subreddits, voiceExamples, recentDrafts, preferenceAdjustments] = await Promise.all([
       getAppSettings(),
       getEnabledSubredditConfigs(),
       prisma.voiceExample.findMany({
@@ -56,7 +57,8 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
           optionalCTAText: true,
           openingLine: true
         }
-      })
+      }),
+      getSubredditPreferenceAdjustments()
     ]);
 
     const startOfDay = new Date();
@@ -156,7 +158,8 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                 notificationThreshold: appSettings.notificationThreshold,
                 medicalRiskKeywords: effectiveSubreddit.medicalRiskKeywords,
                 adviceBoostKeywords: effectiveSubreddit.adviceBoostKeywords,
-                relevanceBoostKeywords: effectiveSubreddit.relevanceKeywords
+                relevanceBoostKeywords: effectiveSubreddit.relevanceKeywords,
+                preferenceAdjustment: preferenceAdjustments.get(subreddit.name) ?? 0
               }
             });
 

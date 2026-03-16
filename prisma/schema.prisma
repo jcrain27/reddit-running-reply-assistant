@@ -49,6 +49,11 @@ enum NotificationPriority {
   HIGH
 }
 
+enum PreferenceSignal {
+  MORE
+  LESS
+}
+
 enum TrackedCommentSource {
   DIRECT_SUBMIT
   MANUAL_TRACK
@@ -130,9 +135,22 @@ model PostCandidate {
   notificationEvents NotificationEvent[]
   replySubmissions  ReplySubmission[]
   trackedComments   TrackedRedditComment[]
+  preferenceFeedback CandidatePreferenceFeedback?
 
   @@index([subreddit, createdAt])
   @@index([status, createdAt])
+}
+
+model CandidatePreferenceFeedback {
+  id             String           @id @default(cuid())
+  postCandidateId String          @unique
+  subreddit      String
+  signal         PreferenceSignal
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  postCandidate  PostCandidate    @relation(fields: [postCandidateId], references: [id], onDelete: Cascade)
+
+  @@index([subreddit, updatedAt])
 }
 
 model DraftReply {

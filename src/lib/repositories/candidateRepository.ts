@@ -64,6 +64,7 @@ export async function listCandidates(options?: {
         orderBy: { createdAt: "desc" },
         take: 1
       },
+      preferenceFeedback: true,
       notificationEvents: {
         orderBy: { sentAt: "desc" },
         take: 1
@@ -85,6 +86,7 @@ export async function getCandidateDetail(id: string) {
   return prisma.postCandidate.findUnique({
     where: { id },
     include: {
+      preferenceFeedback: true,
       trackedComments: {
         orderBy: { createdAt: "desc" }
       },

@@ -1,6 +1,7 @@
 import { CandidateStatus } from "@prisma/client";
 import Link from "next/link";
 
+import { CandidatePreferenceControls } from "@/components/candidate-preference-controls";
 import { CandidateRowActions } from "@/components/candidate-row-actions";
 import { DismissCandidateButton } from "@/components/dismiss-candidate-button";
 import { RunScanButton } from "@/components/run-scan-button";
@@ -8,11 +9,19 @@ import { StatusBadge } from "@/components/status-badge";
 import { requireSession } from "@/lib/auth";
 import { listCandidates } from "@/lib/repositories/candidateRepository";
 import { getAnalyticsSummary } from "@/lib/services/analyticsService";
+import {
+  getPreferenceAdjustmentLabel,
+  getSubredditPreferenceAdjustments
+} from "@/lib/services/preferenceService";
 import { formatAge, safeParseNumber, truncate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_RECENT_WINDOW_HOURS = 24;
+
+function clampDisplayPriority(value: number) {
+  return Math.min(Math.max(value, 0), 100);
+}
 
 export default async function InboxPage({
   searchParams
@@ -31,13 +40,32 @@ export default async function InboxPage({
       : undefined;
   const search = typeof params.q === "string" ? params.q.trim() : "";
   const maxAgeHours = Math.min(safeParseNumber(params.maxAgeHours, DEFAULT_RECENT_WINDOW_HOURS), 24);
-  const candidates = await listCandidates({
-    status,
-    search,
-    maxAgeHours
+  const [candidates, analytics, preferenceAdjustments] = await Promise.all([
+    listCandidates({
+      status,
+      search,
+      maxAgeHours
+    }),
+    getAnalyticsSummary(),
+    getSubredditPreferenceAdjustments()
+  ]);
+
+  const rankedCandidates = [...candidates].sort((left, right) => {
+    const leftPriority = clampDisplayPriority(
+      left.priorityScore + (preferenceAdjustments.get(left.subreddit) ?? 0)
+    );
+    const rightPriority = clampDisplayPriority(
+      right.priorityScore + (preferenceAdjustments.get(right.subreddit) ?? 0)
+    );
+
+    if (rightPriority !== leftPriority) {
+      return rightPriority - leftPriority;
+    }
+
+    return right.createdUtc.getTime() - left.createdUtc.getTime();
   });
-  const analytics = await getAnalyticsSummary();
-  const actionableCandidates = candidates.filter(
+
+  const actionableCandidates = rankedCandidates.filter(
     (candidate) =>
       candidate.status === CandidateStatus.NEW ||
       candidate.status === CandidateStatus.DRAFTED ||
@@ -171,28 +199,40 @@ export default async function InboxPage({
 
           <div className="split-list">
             {focusCandidates.length ? (
-              focusCandidates.map((candidate) => (
-                <div key={candidate.id} className="notice">
-                  <div className="page-header" style={{ alignItems: "center" }}>
-                    <div>
-                      <strong>
-                        r/{candidate.subreddit}: {candidate.title}
-                      </strong>
-                      <div className="table-subtle" style={{ marginTop: 6 }}>
-                        {truncate(candidate.selectedReason, 150)}
+              focusCandidates.map((candidate) => {
+                const adjustment = preferenceAdjustments.get(candidate.subreddit) ?? 0;
+                const preferenceLabel = getPreferenceAdjustmentLabel(adjustment);
+                const adjustedPriority = clampDisplayPriority(candidate.priorityScore + adjustment);
+
+                return (
+                  <div key={candidate.id} className="notice">
+                    <div className="page-header" style={{ alignItems: "center" }}>
+                      <div>
+                        <strong>
+                          r/{candidate.subreddit}: {candidate.title}
+                        </strong>
+                        <div className="table-subtle" style={{ marginTop: 6 }}>
+                          {truncate(candidate.selectedReason, 150)}
+                        </div>
+                      </div>
+                      <div className="toolbar">
+                        <StatusBadge label={`Priority ${adjustedPriority}`} tone="success" />
+                        {preferenceLabel ? <StatusBadge label={preferenceLabel} /> : null}
+                        <StatusBadge label={formatAge(candidate.createdUtc)} />
+                        <CandidatePreferenceControls
+                          candidateId={candidate.id}
+                          currentSignal={candidate.preferenceFeedback?.signal}
+                          compact
+                        />
+                        <DismissCandidateButton candidateId={candidate.id} />
+                        <Link href={`/candidates/${candidate.id}`} className="button-ghost">
+                          Review
+                        </Link>
                       </div>
                     </div>
-                    <div className="toolbar">
-                      <StatusBadge label={`Priority ${candidate.priorityScore}`} tone="success" />
-                      <StatusBadge label={formatAge(candidate.createdUtc)} />
-                      <DismissCandidateButton candidateId={candidate.id} />
-                      <Link href={`/candidates/${candidate.id}`} className="button-ghost">
-                        Review
-                      </Link>
-                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="notice">
                 No strong fresh candidates right now. Run a scan later or widen the search terms, but keep the 24-hour cap.
@@ -216,9 +256,12 @@ export default async function InboxPage({
               </tr>
             </thead>
             <tbody>
-              {candidates.map((candidate) => {
+              {rankedCandidates.map((candidate) => {
                 const latestDraft = candidate.draftReplies[0];
                 const latestNotification = candidate.notificationEvents[0];
+                const preferenceAdjustment = preferenceAdjustments.get(candidate.subreddit) ?? 0;
+                const adjustedPriority = clampDisplayPriority(candidate.priorityScore + preferenceAdjustment);
+                const preferenceLabel = getPreferenceAdjustmentLabel(preferenceAdjustment);
 
                 return (
                   <tr key={candidate.id}>
@@ -233,7 +276,8 @@ export default async function InboxPage({
                     <td>
                       <div className="pill-row">
                         <StatusBadge label={`Advice ${candidate.adviceScore}`} />
-                        <StatusBadge label={`Priority ${candidate.priorityScore}`} tone="success" />
+                        <StatusBadge label={`Priority ${adjustedPriority}`} tone="success" />
+                        {preferenceLabel ? <StatusBadge label={preferenceLabel} /> : null}
                         <StatusBadge label={`${candidate.score ?? 0} ups / ${candidate.numComments ?? 0} com`} />
                       </div>
                     </td>

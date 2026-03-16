@@ -74,7 +74,10 @@ function calculateMedicalRisk(text: string, medicalRiskKeywords: string[]): numb
   return clamp(score, 0, 100);
 }
 
-function buildSelectedReason(scores: Omit<ScoreBreakdown, "selectedReason">): string {
+function buildSelectedReason(
+  scores: Omit<ScoreBreakdown, "selectedReason">,
+  preferenceAdjustment = 0
+): string {
   const reasons: string[] = [];
 
   if (scores.adviceScore >= 75) {
@@ -91,6 +94,14 @@ function buildSelectedReason(scores: Omit<ScoreBreakdown, "selectedReason">): st
 
   if (scores.medicalRiskScore >= 50) {
     reasons.push("Medical risk is elevated, so the draft should stay cautious.");
+  }
+
+  if (preferenceAdjustment >= 4) {
+    reasons.push("You have been asking for more threads like this recently, so it received a small ranking boost.");
+  }
+
+  if (preferenceAdjustment <= -4) {
+    reasons.push("You have been deprioritizing threads like this recently, so it received a small ranking penalty.");
   }
 
   if (!reasons.length) {
@@ -140,12 +151,14 @@ export async function scorePostCandidate(params: {
     medicalRiskKeywords: string[];
     adviceBoostKeywords?: string[];
     relevanceBoostKeywords?: string[];
+    preferenceAdjustment?: number;
   };
 }): Promise<ScoreBreakdown> {
   const { post, config, appSettings } = params;
   const combinedText = normalizeWhitespace(`${post.title} ${post.selftext}`);
   const ageHours = (Date.now() - post.createdUtc * 1000) / 3_600_000;
   const maxPostAgeHours = Math.min(Math.max(appSettings.maxPostAgeHours, 1), 24);
+  const preferenceAdjustment = clamp(appSettings.preferenceAdjustment ?? 0, -15, 15);
 
   const heuristic: ScoreBreakdown = {
     adviceScore: calculateAdviceScoreWithBoosts(
@@ -175,7 +188,8 @@ export async function scorePostCandidate(params: {
         heuristic.relevanceScore * 0.24 +
         heuristic.engagementScore * 0.2 +
         (100 - heuristic.promoRiskScore) * 0.1 +
-        (100 - heuristic.medicalRiskScore) * 0.1
+        (100 - heuristic.medicalRiskScore) * 0.1 +
+        preferenceAdjustment
     ),
     0,
     100
@@ -187,7 +201,7 @@ export async function scorePostCandidate(params: {
     ...modelAssist
   };
 
-  score.selectedReason = buildSelectedReason(score);
+  score.selectedReason = buildSelectedReason(score, preferenceAdjustment);
   score.shouldDraft =
     !post.removedByCategory &&
     post.author !== "[deleted]" &&

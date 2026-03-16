@@ -1,11 +1,16 @@
 import { notFound } from "next/navigation";
 
 import { CandidateEditor } from "@/components/candidate-editor";
+import { CandidatePreferenceControls } from "@/components/candidate-preference-controls";
 import { StatusBadge } from "@/components/status-badge";
 import { TrackCommentForm } from "@/components/track-comment-form";
 import { requireSession } from "@/lib/auth";
 import { getCandidateDetail } from "@/lib/repositories/candidateRepository";
 import { prisma } from "@/lib/db";
+import {
+  getPreferenceAdjustmentLabel,
+  getSubredditPreferenceAdjustments
+} from "@/lib/services/preferenceService";
 import { getAppSettings } from "@/lib/services/settingsService";
 import { formatAge } from "@/lib/utils";
 
@@ -29,12 +34,16 @@ export default async function CandidateDetailPage({
     notFound();
   }
 
-  const [config, appSettings] = await Promise.all([
+  const [config, appSettings, preferenceAdjustments] = await Promise.all([
     prisma.subredditConfig.findUnique({
       where: { name: candidate.subreddit }
     }),
-    getAppSettings()
+    getAppSettings(),
+    getSubredditPreferenceAdjustments()
   ]);
+  const preferenceAdjustment = preferenceAdjustments.get(candidate.subreddit) ?? 0;
+  const preferenceLabel = getPreferenceAdjustmentLabel(preferenceAdjustment);
+  const adjustedPriority = Math.min(Math.max(candidate.priorityScore + preferenceAdjustment, 0), 100);
 
   return (
     <div className="page">
@@ -69,7 +78,23 @@ export default async function CandidateDetailPage({
             <div className="pill-row" style={{ marginTop: 14 }}>
               <StatusBadge label={`Relevance ${candidate.relevanceScore}`} />
               <StatusBadge label={`Engagement ${candidate.engagementScore}`} />
-              <StatusBadge label={`Priority ${candidate.priorityScore}`} tone="success" />
+              <StatusBadge label={`Priority ${adjustedPriority}`} tone="success" />
+              {preferenceLabel ? <StatusBadge label={preferenceLabel} /> : null}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2 className="page-title" style={{ fontSize: "1.35rem" }}>
+              Preference Tuning
+            </h2>
+            <p className="page-copy">
+              Tell the inbox whether you want more or less of this kind of post. Right now this nudges future ranking at the subreddit level, so it helps shape tomorrow&apos;s shortlist without overfitting to one thread.
+            </p>
+            <div style={{ marginTop: 14 }}>
+              <CandidatePreferenceControls
+                candidateId={candidate.id}
+                currentSignal={candidate.preferenceFeedback?.signal}
+              />
             </div>
           </div>
 
