@@ -34,11 +34,31 @@ function extractJson(content: string): string {
   return content.slice(firstBrace, lastBrace + 1);
 }
 
+export function getDraftModel() {
+  const env = getEnv();
+  return env.OPENAI_DRAFT_MODEL || (env.OPENAI_MODEL === "gpt-4.1-mini" ? "gpt-5.4" : env.OPENAI_MODEL);
+}
+
+export function getScoringModel() {
+  const env = getEnv();
+  if (env.OPENAI_SCORING_MODEL) {
+    return env.OPENAI_SCORING_MODEL;
+  }
+
+  if (env.OPENAI_MODEL === "gpt-4.1-mini") {
+    return "gpt-5.4-mini";
+  }
+
+  return env.OPENAI_MODEL;
+}
+
 export async function createStructuredCompletion<T>({
+  model,
   systemPrompt,
   userPrompt,
   temperature = 0.4
 }: {
+  model?: string;
   systemPrompt: string;
   userPrompt: string;
   temperature?: number;
@@ -50,7 +70,7 @@ export async function createStructuredCompletion<T>({
 
   const env = getEnv();
   const completion = await client.chat.completions.create({
-    model: env.OPENAI_MODEL,
+    model: model || env.OPENAI_MODEL,
     temperature,
     response_format: { type: "json_object" },
     messages: [

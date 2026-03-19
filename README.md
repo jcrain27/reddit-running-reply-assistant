@@ -88,7 +88,9 @@ npm run cron:scan
 - `APP_BASE_URL`: Base URL used in notification deep links.
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD`: Seed-time credentials for Johnny’s login.
 - `OPENAI_API_KEY`: Enables model-based drafting.
-- `OPENAI_MODEL`: Draft model name. Adjust to an allowed model in your OpenAI account.
+- `OPENAI_MODEL`: Shared fallback model. Defaults to `gpt-5.4`.
+- `OPENAI_DRAFT_MODEL`: Optional override for higher-quality draft generation. Good default: `gpt-5.4`.
+- `OPENAI_SCORING_MODEL`: Optional cheaper model for pre-draft scoring. Good default: `gpt-5.4-mini`.
 - `ENABLE_MODEL_SCORING`: Optional `true` to use model-assisted scoring before drafting.
 - `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD`: Needed for authenticated Reddit access and direct submit.
 - `SMTP_*`, `NOTIFY_EMAIL_*`, `SLACK_WEBHOOK_URL`: Notification channels.

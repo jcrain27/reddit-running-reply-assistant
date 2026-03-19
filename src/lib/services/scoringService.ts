@@ -6,7 +6,7 @@ import {
   PROMO_RISK_PHRASES
 } from "@/lib/constants";
 import { getEnv } from "@/lib/env";
-import { createStructuredCompletion } from "@/lib/services/openaiClient";
+import { createStructuredCompletion, getScoringModel } from "@/lib/services/openaiClient";
 import type { RedditPost, ScoreBreakdown } from "@/lib/types";
 import { clamp, normalizeWhitespace } from "@/lib/utils";
 
@@ -126,6 +126,7 @@ async function maybeModelAssistScore(input: {
   }
 
   return createStructuredCompletion<Partial<ScoreBreakdown>>({
+    model: getScoringModel(),
     temperature: 0.1,
     systemPrompt: [
       "You are scoring Reddit posts for a human-in-the-loop running advice assistant.",
