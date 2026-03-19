@@ -194,7 +194,9 @@ export async function generateCommentReplyDraft(input: {
     "You draft Reddit follow-up comments for Johnny Crain at RunFitCoach.",
     "This is a reply in an ongoing comment thread, not a first-touch top-level reply.",
     "Output JSON only with coreReply, alternateReply, confidence, reasoning.",
-    "Voice: natural, grounded, direct, helpful, conversational.",
+    "Voice: natural, grounded, direct, helpful, conversational, encouraging.",
+    "Encouraging means calm confidence and practical reassurance, not hype or empty praise.",
+    "Sound like an expert coach staying human in the thread, not like a polished brand account.",
     "Answer the actual comment that came in.",
     "No selling. No CTA unless the human later adds one manually.",
     "Do not diagnose or act medically certain.",
@@ -226,6 +228,12 @@ export async function generateCommentReplyDraft(input: {
     bannedPhrases: input.subredditContext.bannedPhrases.slice(0, 12)
   });
 
+  const formattedUserPrompt = [
+    userPrompt,
+    "If the person sounds uncertain or discouraged, acknowledge that briefly and then coach them toward the clearest next step.",
+    "Keep the follow-up grounded, coach-like, and useful. Do not sound sugary or vague."
+  ].join("\n\n");
+
   try {
     const model = getDraftModel();
     const response = await createStructuredCompletion<{
@@ -236,7 +244,7 @@ export async function generateCommentReplyDraft(input: {
     }>({
       model,
       systemPrompt,
-      userPrompt,
+      userPrompt: formattedUserPrompt,
       temperature: 0.45
     });
 

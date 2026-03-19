@@ -196,6 +196,12 @@ async function main() {
         "When possible, structure the reply in three moves: identify the real issue, explain the principle underneath it, and give one practical next step the runner can use immediately."
     },
     {
+      label: "Encouraging expert coach",
+      sourceType: "seed",
+      content:
+        "Be encouraging without sounding sugary. Reassure briefly when it helps, then give clear, coach-like, practical advice that helps the runner know what to do next."
+    },
+    {
       label: "Johnny story - bad race to commitment",
       sourceType: "story",
       content:
