@@ -41,6 +41,12 @@ type SettingsPayload = {
     content: string;
     enabled: boolean;
   }>;
+  blogKnowledge: {
+    feedUrl: string;
+    blogPostCount: number;
+    lastSyncAt: string | null;
+    lastSyncStatus: string | null;
+  };
 };
 
 function parseLines(value: string) {
@@ -64,8 +70,10 @@ export function SettingsForm({ initialData }: { initialData: SettingsPayload }) 
   );
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
+  const [blogMessage, setBlogMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingVoice, setSavingVoice] = useState(false);
+  const [syncingBlogs, setSyncingBlogs] = useState(false);
 
   const subredditRows = settings.subreddits;
 
@@ -135,8 +143,75 @@ export function SettingsForm({ initialData }: { initialData: SettingsPayload }) 
     setVoiceMessage(response.ok ? "Voice examples saved." : "Voice save failed.");
   }
 
+  async function syncBlogsNow() {
+    setSyncingBlogs(true);
+    setBlogMessage(null);
+
+    const response = await fetch("/api/blog-sync/run", {
+      method: "POST"
+    });
+
+    const data = (await response.json().catch(() => null)) as
+      | {
+          message?: string;
+          error?: string;
+          blogKnowledge?: SettingsPayload["blogKnowledge"];
+        }
+      | null;
+
+    setSyncingBlogs(false);
+    if (response.ok && data?.blogKnowledge) {
+      setSettings((current) => ({
+        ...current,
+        blogKnowledge: data.blogKnowledge || current.blogKnowledge
+      }));
+    }
+    setBlogMessage(
+      response.ok
+        ? data?.message || "Blog sync finished."
+        : data?.error || "Blog sync failed."
+    );
+  }
+
   return (
     <div className="page">
+      <div className="panel">
+        <div className="page-header">
+          <div>
+            <h2 className="page-title" style={{ fontSize: "1.4rem" }}>
+              Blog Knowledge
+            </h2>
+            <p className="page-copy">
+              The app checks your RunFitCoach blog feed weekly and can suggest a subtle read-more link when a Reddit thread clearly matches one of your posts.
+            </p>
+          </div>
+          <button type="button" className="button" onClick={syncBlogsNow} disabled={syncingBlogs}>
+            {syncingBlogs ? "Syncing..." : "Sync Blogs Now"}
+          </button>
+        </div>
+
+        {blogMessage ? <div className="notice">{blogMessage}</div> : null}
+
+        <div className="split-list">
+          <div className="notice">
+            <strong>Feed</strong>
+            <div style={{ marginTop: 8 }}>{settings.blogKnowledge.feedUrl}</div>
+          </div>
+          <div className="notice">
+            <strong>Stored posts</strong>
+            <div style={{ marginTop: 8 }}>{settings.blogKnowledge.blogPostCount}</div>
+          </div>
+          <div className="notice">
+            <strong>Last sync</strong>
+            <div style={{ marginTop: 8 }}>
+              {settings.blogKnowledge.lastSyncAt
+                ? `${new Date(settings.blogKnowledge.lastSyncAt).toLocaleString()} (${settings.blogKnowledge.lastSyncStatus?.toLowerCase() || "unknown"})`
+                : "No sync yet."}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="panel">
         <div className="page-header">
           <div>

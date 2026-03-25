@@ -119,6 +119,15 @@ export default async function CandidateDetailPage({
             initialDraft={latestDraft.humanEditedText || latestDraft.draftText}
             alternateDraft={latestDraft.alternateDraftText || undefined}
             optionalCTA={latestDraft.optionalCTAText || undefined}
+            recommendedBlog={
+              latestDraft.recommendedBlogPost
+                ? {
+                    title: latestDraft.recommendedBlogPost.title,
+                    url: latestDraft.recommendedBlogPost.url,
+                    reason: latestDraft.recommendedBlogReason
+                  }
+                : undefined
+            }
             safetyWarnings={Array.isArray(latestDraft.safetyWarnings) ? (latestDraft.safetyWarnings as string[]) : []}
             directSubmitEnabled={Boolean(appSettings.enableDirectSubmit && config?.allowDirectSubmit)}
           />
@@ -149,6 +158,28 @@ export default async function CandidateDetailPage({
                 Optional CTA Suggestion
               </h2>
               <div className="draft-box">{latestDraft.optionalCTAText}</div>
+            </div>
+          ) : null}
+
+          {latestDraft.recommendedBlogPost ? (
+            <div className="panel">
+              <h2 className="page-title" style={{ fontSize: "1.35rem" }}>
+                Matched Blog Context
+              </h2>
+              <div className="draft-box">
+                <strong>{latestDraft.recommendedBlogPost.title}</strong>
+                <div style={{ marginTop: 10 }}>{latestDraft.recommendedBlogPost.summaryText}</div>
+                {latestDraft.recommendedBlogReason ? (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Why it matched:</strong> {latestDraft.recommendedBlogReason}
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 10 }}>
+                  <a href={latestDraft.recommendedBlogPost.url} target="_blank" rel="noreferrer">
+                    {latestDraft.recommendedBlogPost.url}
+                  </a>
+                </div>
+              </div>
             </div>
           ) : null}
 

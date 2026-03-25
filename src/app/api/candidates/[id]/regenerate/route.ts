@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { DEFAULT_PROMPT_VERSIONS, MAX_RECENT_DRAFTS_FOR_SIMILARITY } from "@/lib/constants";
+import { listBlogPostsForMatching, recommendBlogPost } from "@/lib/services/blogSyncService";
 import { generateDraft } from "@/lib/services/draftService";
 import { buildEffectiveSubredditSettings } from "@/lib/services/subredditRulesService";
 import { validateDraft } from "@/lib/services/safetyService";
@@ -39,7 +40,7 @@ export async function POST(
     return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
   }
 
-  const [config, appSettings, voiceExamples, recentDrafts] = await Promise.all([
+  const [config, appSettings, voiceExamples, recentDrafts, blogPosts] = await Promise.all([
     prisma.subredditConfig.findUnique({
       where: { name: candidate.subreddit },
       include: { rules: true }
@@ -57,7 +58,8 @@ export async function POST(
         optionalCTAText: true,
         openingLine: true
       }
-    })
+    }),
+    listBlogPostsForMatching()
   ]);
 
   if (!config) {
@@ -94,6 +96,11 @@ export async function POST(
       enableCTASuggestions: appSettings.enableCTASuggestions
     },
     voiceExamples,
+    recommendedBlog: recommendBlogPost({
+      postTitle: candidate.title,
+      postBodyText: candidate.bodyText,
+      blogPosts
+    }),
     ruleContext: effectiveSubreddit,
     recentDrafts,
     toneVariant: parsed.data.toneVariant
@@ -116,6 +123,9 @@ export async function POST(
       draftText: draft.coreReply,
       alternateDraftText: draft.alternateReply,
       optionalCTAText: draft.optionalCTA,
+      recommendedBlogPostId: draft.recommendedBlog?.id,
+      recommendedBlogReason: draft.recommendedBlog?.reason,
+      recommendedBlogMatchScore: draft.recommendedBlog?.matchScore,
       ctaAllowed: Boolean(appSettings.enableCTASuggestions && config.allowCTA && !config.strictNoPromo),
       confidence: draft.confidence,
       generationReasoning: draft.reasoning,

@@ -7,6 +7,7 @@ Private, single-user, human-in-the-loop Reddit reply drafting for Johnny Crain a
 - Next.js app-router dashboard with login, inbox, candidate detail, settings, and analytics.
 - Postgres + Prisma schema, migration, and seed data.
 - A scan pipeline that fetches recent posts from configured subreddits, scores them, drafts replies, runs safety checks, and notifies Johnny for high-priority items.
+- A weekly RunFitCoach blog sync that pulls new articles from `https://www.runfitcoach.com/blog?format=rss` and makes them available as subtle read-more suggestions when a Reddit thread is a strong fit.
 - Human review flow with edit, copy-only tracking, skip/archive actions, and optional direct Reddit submit behind a feature flag.
 - Email and Slack notification support.
 - Basic analytics around candidate volume, approvals, copy usage, CTA usage, and edit behavior.
@@ -75,10 +76,12 @@ npm run cron:scan
 1. Render cron or the manual scan trigger runs every 15 minutes.
 2. The scan fetches recent posts from enabled subreddits.
 3. Posts are deduplicated and scored for advice intent, relevance, engagement, promo risk, and medical risk.
-4. Qualified posts get a draft, alternate draft, optional CTA suggestion, and safety validation.
-5. High-priority candidates trigger email and/or Slack notifications.
-6. Johnny reviews in the dashboard, edits if needed, copies manually, or explicitly approves direct submit.
-7. Edit behavior and outcomes are stored for analytics and future prompt tuning.
+4. Once a week, the app refreshes Johnny's RunFitCoach blog library from the RSS feed so new articles can be used in future drafts.
+5. Qualified posts get a draft, alternate draft, optional CTA suggestion, and safety validation.
+6. When a blog post is a strong match, the draft can include a subtle "read more" link or show the matched article in the editor for manual use.
+7. High-priority candidates trigger email and/or Slack notifications.
+8. Johnny reviews in the dashboard, edits if needed, copies manually, or explicitly approves direct submit.
+9. Edit behavior and outcomes are stored for analytics and future prompt tuning.
 
 ## Important environment variables
 

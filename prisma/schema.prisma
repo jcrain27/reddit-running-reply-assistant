@@ -59,6 +59,12 @@ enum TrackedCommentSource {
   MANUAL_TRACK
 }
 
+enum BlogSyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -156,12 +162,15 @@ model CandidatePreferenceFeedback {
 model DraftReply {
   id                        String           @id @default(cuid())
   postCandidateId           String
+  recommendedBlogPostId     String?
   modelName                 String
   systemPromptVersion       String
   userPromptVersion         String
   draftText                 String           @db.Text
   alternateDraftText        String?          @db.Text
   optionalCTAText           String?          @db.Text
+  recommendedBlogReason     String?          @db.Text
+  recommendedBlogMatchScore Float?
   ctaAllowed                Boolean          @default(false)
   confidence                Float
   generationReasoning       String?          @db.Text
@@ -179,9 +188,11 @@ model DraftReply {
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
   postCandidate             PostCandidate    @relation(fields: [postCandidateId], references: [id], onDelete: Cascade)
+  recommendedBlogPost       BlogPost?        @relation(fields: [recommendedBlogPostId], references: [id], onDelete: SetNull)
   replySubmissions          ReplySubmission[]
 
   @@index([postCandidateId, createdAt])
+  @@index([recommendedBlogPostId])
 }
 
 model SubredditRule {
@@ -352,6 +363,40 @@ model ScanRun {
   triggeredBy    String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+
+  @@index([createdAt])
+}
+
+model BlogPost {
+  id            String      @id @default(cuid())
+  url           String      @unique
+  slug          String      @unique
+  title         String
+  author        String?
+  publishedAt   DateTime
+  summaryText   String      @db.Text
+  contentText   String      @db.Text
+  matchKeywords Json
+  sourceFeedUrl String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  draftReplies  DraftReply[]
+
+  @@index([publishedAt])
+}
+
+model BlogSyncRun {
+  id           String         @id @default(cuid())
+  feedUrl      String
+  startedAt    DateTime
+  finishedAt   DateTime?
+  status       BlogSyncStatus @default(RUNNING)
+  fetchedCount Int            @default(0)
+  createdCount Int            @default(0)
+  updatedCount Int            @default(0)
+  errorMessage String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   @@index([createdAt])
 }

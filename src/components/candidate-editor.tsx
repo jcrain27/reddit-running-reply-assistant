@@ -10,6 +10,11 @@ export function CandidateEditor(props: {
   initialDraft: string;
   alternateDraft?: string;
   optionalCTA?: string;
+  recommendedBlog?: {
+    title: string;
+    url: string;
+    reason?: string | null;
+  };
   safetyWarnings: string[];
   directSubmitEnabled: boolean;
 }) {
@@ -19,6 +24,13 @@ export function CandidateEditor(props: {
   const [message, setMessage] = useState<string | null>(null);
 
   const ctaHint = useMemo(() => props.optionalCTA?.trim() || "", [props.optionalCTA]);
+  const blogReadMoreHint = useMemo(() => {
+    if (!props.recommendedBlog) {
+      return "";
+    }
+
+    return `If you'd want to read more, I wrote a fuller piece on ${props.recommendedBlog.title} here: ${props.recommendedBlog.url}`;
+  }, [props.recommendedBlog]);
 
   async function callEndpoint(
     path: string,
@@ -143,6 +155,29 @@ export function CandidateEditor(props: {
                 onClick={() => setText((current) => `${current.trim()}\n\n${ctaHint}`.trim())}
               >
                 Append CTA
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {props.recommendedBlog ? (
+          <div className="notice">
+            <strong>Related RunFitCoach blog</strong>
+            <div style={{ marginTop: 8 }}>
+              <a href={props.recommendedBlog.url} target="_blank" rel="noreferrer">
+                {props.recommendedBlog.title}
+              </a>
+            </div>
+            {props.recommendedBlog.reason ? (
+              <div style={{ marginTop: 8 }}>{props.recommendedBlog.reason}</div>
+            ) : null}
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="button-ghost"
+                onClick={() => setText((current) => `${current.trim()}\n\n${blogReadMoreHint}`.trim())}
+              >
+                Append read-more link
               </button>
             </div>
           </div>

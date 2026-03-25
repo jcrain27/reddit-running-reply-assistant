@@ -48,6 +48,16 @@ export interface DraftGenerationResult {
   confidence: number;
   reasoning: string;
   modelName: string;
+  recommendedBlog?: BlogRecommendation;
+}
+
+export interface BlogRecommendation {
+  id: string;
+  title: string;
+  url: string;
+  summaryText: string;
+  matchScore: number;
+  reason: string;
 }
 
 export interface CommentReplyDraftGenerationResult {

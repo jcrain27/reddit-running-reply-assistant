@@ -7,6 +7,7 @@ import {
   DEFAULT_SUBREDDITS
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { getBlogKnowledgeSummary } from "@/lib/services/blogSyncService";
 
 export interface SaveSettingsInput {
   appSettings: {
@@ -120,7 +121,7 @@ export async function getEnabledSubredditConfigs() {
 }
 
 export async function getSettingsPageData() {
-  const [appSettings, subreddits, voiceExamples] = await Promise.all([
+  const [appSettings, subreddits, voiceExamples, blogKnowledge] = await Promise.all([
     getAppSettings(),
     prisma.subredditConfig.findMany({
       include: { rules: true },
@@ -128,10 +129,11 @@ export async function getSettingsPageData() {
     }),
     prisma.voiceExample.findMany({
       orderBy: [{ enabled: "desc" }, { label: "asc" }]
-    })
+    }),
+    getBlogKnowledgeSummary()
   ]);
 
-  return { appSettings, subreddits, voiceExamples };
+  return { appSettings, subreddits, voiceExamples, blogKnowledge };
 }
 
 export async function saveSettings(input: SaveSettingsInput) {

@@ -139,8 +139,8 @@ export const DEFAULT_COACHING_PRINCIPLES = [
 ] as const;
 
 export const DEFAULT_PROMPT_VERSIONS = {
-  system: "2026-03-15.1",
-  user: "2026-03-15.1"
+  system: "2026-03-25.1",
+  user: "2026-03-25.1"
 } as const;
 
 export const MAX_RECENT_DRAFTS_FOR_SIMILARITY = 50;

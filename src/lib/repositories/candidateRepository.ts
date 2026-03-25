@@ -61,6 +61,9 @@ export async function listCandidates(options?: {
     },
     include: {
       draftReplies: {
+        include: {
+          recommendedBlogPost: true
+        },
         orderBy: { createdAt: "desc" },
         take: 1
       },
@@ -91,6 +94,9 @@ export async function getCandidateDetail(id: string) {
         orderBy: { createdAt: "desc" }
       },
       draftReplies: {
+        include: {
+          recommendedBlogPost: true
+        },
         orderBy: { createdAt: "desc" }
       },
       notificationEvents: {

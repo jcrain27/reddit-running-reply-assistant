@@ -9,6 +9,11 @@ import {
 import { prisma } from "@/lib/db";
 import { getCandidateDetail } from "@/lib/repositories/candidateRepository";
 import { DEFAULT_PROMPT_VERSIONS, MAX_RECENT_DRAFTS_FOR_SIMILARITY } from "@/lib/constants";
+import {
+  listBlogPostsForMatching,
+  recommendBlogPost,
+  syncRunFitCoachBlogPosts
+} from "@/lib/services/blogSyncService";
 import { generateDraft } from "@/lib/services/draftService";
 import { processTrackedCommentReplies } from "@/lib/services/commentReplyService";
 import { dispatchNotifications } from "@/lib/services/notificationService";
@@ -42,7 +47,21 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
   };
 
   try {
-    const [appSettings, subreddits, voiceExamples, recentDrafts, preferenceAdjustments] = await Promise.all([
+    try {
+      const blogSync = await syncRunFitCoachBlogPosts({ triggeredBy });
+      if (!blogSync.skipped) {
+        result.notes.push(blogSync.message);
+      }
+    } catch (error) {
+      result.notes.push(
+        `Blog sync skipped for this scan because it failed: ${
+          error instanceof Error ? error.message : "Unknown error."
+        }`
+      );
+    }
+
+    const [appSettings, subreddits, voiceExamples, recentDrafts, preferenceAdjustments, blogPosts] =
+      await Promise.all([
       getAppSettings(),
       getEnabledSubredditConfigs(),
       prisma.voiceExample.findMany({
@@ -58,7 +77,8 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
           openingLine: true
         }
       }),
-      getSubredditPreferenceAdjustments()
+      getSubredditPreferenceAdjustments(),
+      listBlogPostsForMatching()
     ]);
 
     const startOfDay = new Date();
@@ -208,6 +228,11 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                 enableCTASuggestions: appSettings.enableCTASuggestions
               },
               voiceExamples,
+              recommendedBlog: recommendBlogPost({
+                postTitle: post.title,
+                postBodyText: post.selftext,
+                blogPosts
+              }),
               ruleContext: effectiveSubreddit,
               recentDrafts
             });
@@ -229,6 +254,11 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                   enableCTASuggestions: appSettings.enableCTASuggestions
                 },
                 voiceExamples,
+                recommendedBlog: recommendBlogPost({
+                  postTitle: post.title,
+                  postBodyText: post.selftext,
+                  blogPosts
+                }),
                 ruleContext: effectiveSubreddit,
                 recentDrafts,
                 toneVariant: score.medicalRiskScore > 40 ? "cautious" : "alternate"
@@ -257,6 +287,9 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                 draftText: draftToUse.coreReply,
                 alternateDraftText: draftToUse.alternateReply,
                 optionalCTAText: draftToUse.optionalCTA,
+                recommendedBlogPostId: draftToUse.recommendedBlog?.id,
+                recommendedBlogReason: draftToUse.recommendedBlog?.reason,
+                recommendedBlogMatchScore: draftToUse.recommendedBlog?.matchScore,
                 ctaAllowed:
                   appSettings.enableCTASuggestions &&
                   subreddit.allowCTA &&

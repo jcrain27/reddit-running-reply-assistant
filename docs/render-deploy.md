@@ -98,3 +98,4 @@ Render's current docs for shell access and one-off jobs:
 - If you want the cron job to hit the API instead of running `npm run cron:scan`, point it to `POST /api/scan/run` and send `x-cron-secret`.
 - The UI has a configurable scan frequency field, but Render should stay on a fixed 15-minute schedule for v1.
 - Set `APP_BASE_URL` to the public Render URL so Slack/email notifications deep-link back into the dashboard.
+- The weekly RunFitCoach blog sync happens inside the normal scan job, so the cron job does not need a second schedule for blog updates.
