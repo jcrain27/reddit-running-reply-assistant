@@ -297,11 +297,14 @@ model CommentReplyCandidate {
 model CommentReplyDraft {
   id                        String               @id @default(cuid())
   commentReplyCandidateId   String
+  recommendedBlogPostId     String?
   modelName                 String
   systemPromptVersion       String
   userPromptVersion         String
   draftText                 String               @db.Text
   alternateDraftText        String?              @db.Text
+  recommendedBlogReason     String?              @db.Text
+  recommendedBlogMatchScore Float?
   confidence                Float
   generationReasoning       String?              @db.Text
   safetyWarnings            Json?
@@ -317,9 +320,11 @@ model CommentReplyDraft {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
   commentReplyCandidate     CommentReplyCandidate @relation(fields: [commentReplyCandidateId], references: [id], onDelete: Cascade)
+  recommendedBlogPost       BlogPost?            @relation(fields: [recommendedBlogPostId], references: [id], onDelete: SetNull)
   replySubmissions          CommentReplySubmission[]
 
   @@index([commentReplyCandidateId, createdAt])
+  @@index([recommendedBlogPostId])
 }
 
 model CommentReplyNotificationEvent {
@@ -368,19 +373,23 @@ model ScanRun {
 }
 
 model BlogPost {
-  id            String      @id @default(cuid())
-  url           String      @unique
-  slug          String      @unique
-  title         String
-  author        String?
-  publishedAt   DateTime
-  summaryText   String      @db.Text
-  contentText   String      @db.Text
-  matchKeywords Json
-  sourceFeedUrl String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  draftReplies  DraftReply[]
+  id                   String             @id @default(cuid())
+  url                  String             @unique
+  slug                 String             @unique
+  title                String
+  author               String?
+  publishedAt          DateTime
+  summaryText          String             @db.Text
+  contentText          String             @db.Text
+  matchKeywords        Json
+  semanticEmbedding    Json?
+  semanticEmbeddingModel String?
+  semanticEmbeddingUpdatedAt DateTime?
+  sourceFeedUrl        String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  draftReplies         DraftReply[]
+  commentReplyDrafts   CommentReplyDraft[]
 
   @@index([publishedAt])
 }

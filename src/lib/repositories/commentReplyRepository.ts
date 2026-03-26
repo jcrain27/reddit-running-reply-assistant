@@ -8,6 +8,9 @@ export async function listCommentReplyCandidates(status?: CandidateStatus) {
     include: {
       trackedComment: true,
       draftReplies: {
+        include: {
+          recommendedBlogPost: true
+        },
         orderBy: { createdAt: "desc" },
         take: 1
       },
@@ -36,6 +39,9 @@ export async function getCommentReplyCandidateDetail(id: string) {
         orderBy: { createdAt: "desc" }
       },
       draftReplies: {
+        include: {
+          recommendedBlogPost: true
+        },
         orderBy: { createdAt: "desc" }
       },
       notificationEvents: {

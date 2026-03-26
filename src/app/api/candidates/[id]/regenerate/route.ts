@@ -73,6 +73,11 @@ export async function POST(
       medicalRiskKeywords: appSettings.medicalRiskKeywords as string[]
     }
   });
+  const recommendedBlog = await recommendBlogPost({
+    postTitle: candidate.title,
+    postBodyText: candidate.bodyText,
+    blogPosts
+  });
 
   const draft = await generateDraft({
     post: {
@@ -96,11 +101,7 @@ export async function POST(
       enableCTASuggestions: appSettings.enableCTASuggestions
     },
     voiceExamples,
-    recommendedBlog: recommendBlogPost({
-      postTitle: candidate.title,
-      postBodyText: candidate.bodyText,
-      blogPosts
-    }),
+    recommendedBlog,
     ruleContext: effectiveSubreddit,
     recentDrafts,
     toneVariant: parsed.data.toneVariant

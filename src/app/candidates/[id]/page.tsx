@@ -128,6 +128,7 @@ export default async function CandidateDetailPage({
                   }
                 : undefined
             }
+            allowBlogLinkAppend={Boolean(config?.allowCTA && !config?.strictNoPromo)}
             safetyWarnings={Array.isArray(latestDraft.safetyWarnings) ? (latestDraft.safetyWarnings as string[]) : []}
             directSubmitEnabled={Boolean(appSettings.enableDirectSubmit && config?.allowDirectSubmit)}
           />

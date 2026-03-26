@@ -15,6 +15,7 @@ export function CandidateEditor(props: {
     url: string;
     reason?: string | null;
   };
+  allowBlogLinkAppend: boolean;
   safetyWarnings: string[];
   directSubmitEnabled: boolean;
 }) {
@@ -171,15 +172,21 @@ export function CandidateEditor(props: {
             {props.recommendedBlog.reason ? (
               <div style={{ marginTop: 8 }}>{props.recommendedBlog.reason}</div>
             ) : null}
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="button-ghost"
-                onClick={() => setText((current) => `${current.trim()}\n\n${blogReadMoreHint}`.trim())}
-              >
-                Append read-more link
-              </button>
-            </div>
+            {props.allowBlogLinkAppend ? (
+              <div style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => setText((current) => `${current.trim()}\n\n${blogReadMoreHint}`.trim())}
+                >
+                  Append read-more link
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12 }} className="muted">
+                Kept as internal context only because this subreddit is set to no-promo.
+              </div>
+            )}
           </div>
         ) : null}
 

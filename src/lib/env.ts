@@ -19,6 +19,7 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().min(1).default("gpt-5.4"),
   OPENAI_DRAFT_MODEL: blankToUndefined(z.string().min(1)),
   OPENAI_SCORING_MODEL: blankToUndefined(z.string().min(1)),
+  OPENAI_EMBEDDING_MODEL: z.string().min(1).default("text-embedding-3-small"),
   OPENAI_BASE_URL: blankToUndefined(z.string().url()),
   ENABLE_MODEL_SCORING: blankToUndefined(z.string()),
   REDDIT_CLIENT_ID: blankToUndefined(z.string()),

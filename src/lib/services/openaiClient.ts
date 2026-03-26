@@ -52,6 +52,11 @@ export function getScoringModel() {
   return env.OPENAI_MODEL;
 }
 
+export function getEmbeddingModel() {
+  const env = getEnv();
+  return env.OPENAI_EMBEDDING_MODEL;
+}
+
 export async function createStructuredCompletion<T>({
   model,
   systemPrompt,
@@ -87,4 +92,19 @@ export async function createStructuredCompletion<T>({
 
   const content = completion.choices[0]?.message?.content ?? "{}";
   return JSON.parse(extractJson(content)) as T;
+}
+
+export async function createEmbedding(input: string, model?: string): Promise<number[] | null> {
+  const client = getClient();
+  if (!client) {
+    return null;
+  }
+
+  const env = getEnv();
+  const response = await client.embeddings.create({
+    model: model || env.OPENAI_EMBEDDING_MODEL,
+    input
+  });
+
+  return response.data[0]?.embedding ?? null;
 }

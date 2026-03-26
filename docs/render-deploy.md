@@ -35,6 +35,7 @@ Set these on both the web service and the cron job:
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
+- `OPENAI_EMBEDDING_MODEL`
 - `REDDIT_CLIENT_ID`
 - `REDDIT_CLIENT_SECRET`
 - `REDDIT_USERNAME`

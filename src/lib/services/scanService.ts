@@ -220,6 +220,11 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
 
             candidateId = candidate.id;
             result.candidateCount += 1;
+            const recommendedBlog = await recommendBlogPost({
+              postTitle: post.title,
+              postBodyText: post.selftext,
+              blogPosts
+            });
 
             const initialDraft = await generateDraft({
               post,
@@ -228,11 +233,7 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                 enableCTASuggestions: appSettings.enableCTASuggestions
               },
               voiceExamples,
-              recommendedBlog: recommendBlogPost({
-                postTitle: post.title,
-                postBodyText: post.selftext,
-                blogPosts
-              }),
+              recommendedBlog,
               ruleContext: effectiveSubreddit,
               recentDrafts
             });
@@ -254,11 +255,7 @@ export async function runScanJob(triggeredBy = "manual"): Promise<ScanJobResult 
                   enableCTASuggestions: appSettings.enableCTASuggestions
                 },
                 voiceExamples,
-                recommendedBlog: recommendBlogPost({
-                  postTitle: post.title,
-                  postBodyText: post.selftext,
-                  blogPosts
-                }),
+                recommendedBlog,
                 ruleContext: effectiveSubreddit,
                 recentDrafts,
                 toneVariant: score.medicalRiskScore > 40 ? "cautious" : "alternate"

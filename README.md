@@ -7,7 +7,7 @@ Private, single-user, human-in-the-loop Reddit reply drafting for Johnny Crain a
 - Next.js app-router dashboard with login, inbox, candidate detail, settings, and analytics.
 - Postgres + Prisma schema, migration, and seed data.
 - A scan pipeline that fetches recent posts from configured subreddits, scores them, drafts replies, runs safety checks, and notifies Johnny for high-priority items.
-- A weekly RunFitCoach blog sync that pulls new articles from `https://www.runfitcoach.com/blog?format=rss` and makes them available as subtle read-more suggestions when a Reddit thread is a strong fit.
+- A weekly RunFitCoach blog sync that pulls new articles from `https://www.runfitcoach.com/blog?format=rss`, stores semantic embeddings for them, and makes them available as subtle read-more suggestions when a Reddit thread is a strong fit.
 - Human review flow with edit, copy-only tracking, skip/archive actions, and optional direct Reddit submit behind a feature flag.
 - Email and Slack notification support.
 - Basic analytics around candidate volume, approvals, copy usage, CTA usage, and edit behavior.
@@ -79,9 +79,10 @@ npm run cron:scan
 4. Once a week, the app refreshes Johnny's RunFitCoach blog library from the RSS feed so new articles can be used in future drafts.
 5. Qualified posts get a draft, alternate draft, optional CTA suggestion, and safety validation.
 6. When a blog post is a strong match, the draft can include a subtle "read more" link or show the matched article in the editor for manual use.
-7. High-priority candidates trigger email and/or Slack notifications.
-8. Johnny reviews in the dashboard, edits if needed, copies manually, or explicitly approves direct submit.
-9. Edit behavior and outcomes are stored for analytics and future prompt tuning.
+7. Follow-up reply drafts can also surface matched blog context so Johnny can add a read-more link manually when it fits the conversation.
+8. High-priority candidates trigger email and/or Slack notifications.
+9. Johnny reviews in the dashboard, edits if needed, copies manually, or explicitly approves direct submit.
+10. Edit behavior and outcomes are stored for analytics and future prompt tuning.
 
 ## Important environment variables
 
@@ -94,6 +95,7 @@ npm run cron:scan
 - `OPENAI_MODEL`: Shared fallback model. Defaults to `gpt-5.4`.
 - `OPENAI_DRAFT_MODEL`: Optional override for higher-quality draft generation. Good default: `gpt-5.4`.
 - `OPENAI_SCORING_MODEL`: Optional cheaper model for pre-draft scoring. Good default: `gpt-5.4-mini`.
+- `OPENAI_EMBEDDING_MODEL`: Optional semantic-matching model for blog recommendations. Good default: `text-embedding-3-small`.
 - `ENABLE_MODEL_SCORING`: Optional `true` to use model-assisted scoring before drafting.
 - `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD`: Needed for authenticated Reddit access and direct submit.
 - `SMTP_*`, `NOTIFY_EMAIL_*`, `SLACK_WEBHOOK_URL`: Notification channels.

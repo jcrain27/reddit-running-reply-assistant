@@ -34,8 +34,8 @@ describe("parseBlogFeed", () => {
 });
 
 describe("recommendBlogPost", () => {
-  it("selects the best matching blog for a Reddit pacing question", () => {
-    const recommendation = recommendBlogPost({
+  it("selects the best matching blog for a Reddit pacing question", async () => {
+    const recommendation = await recommendBlogPost({
       postTitle: "How slow should my easy runs actually be?",
       postBodyText:
         "I keep hearing that my easy pace is too fast and I think that is wrecking my recovery between workouts.",
@@ -49,7 +49,9 @@ describe("recommendBlogPost", () => {
           contentText:
             "Slow easy running helps recovery, aerobic development, and workout quality over the long haul.",
           publishedAt: new Date("2026-03-20T00:00:00.000Z"),
-          matchKeywords: ["easy", "pace", "recovery", "aerobic"]
+          matchKeywords: ["easy", "pace", "recovery", "aerobic"],
+          semanticEmbedding: [0.8, 0.1, 0.2],
+          semanticEmbeddingModel: "text-embedding-3-small"
         },
         {
           id: "blog_2",
@@ -58,7 +60,9 @@ describe("recommendBlogPost", () => {
           summaryText: "How strength work supports durability and power.",
           contentText: "Strength work supports durability and power for runners.",
           publishedAt: new Date("2026-03-19T00:00:00.000Z"),
-          matchKeywords: ["strength", "durability", "power"]
+          matchKeywords: ["strength", "durability", "power"],
+          semanticEmbedding: [0.1, 0.9, 0.1],
+          semanticEmbeddingModel: "text-embedding-3-small"
         }
       ]
     });

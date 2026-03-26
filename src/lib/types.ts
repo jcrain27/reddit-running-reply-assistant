@@ -66,6 +66,7 @@ export interface CommentReplyDraftGenerationResult {
   confidence: number;
   reasoning: string;
   modelName: string;
+  recommendedBlog?: BlogRecommendation;
 }
 
 export interface SafetyValidationResult {

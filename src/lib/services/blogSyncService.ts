@@ -2,6 +2,7 @@ import { BlogSyncStatus, Prisma, type BlogPost } from "@prisma/client";
 
 import { APP_NAME } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { createEmbedding, getEmbeddingModel } from "@/lib/services/openaiClient";
 import type { BlogRecommendation } from "@/lib/types";
 import {
   calculateTextSimilarity,
@@ -20,6 +21,7 @@ const MAX_CONTENT_LENGTH = 12_000;
 const MAX_SUMMARY_LENGTH = 650;
 const MAX_MATCH_KEYWORDS = 12;
 const BLOG_MATCH_LOOKBACK = 40;
+const MAX_EMBEDDING_INPUT_LENGTH = 4_500;
 
 const STOPWORDS = new Set([
   "about",
@@ -173,6 +175,54 @@ function toKeywordArray(value: Prisma.JsonValue): string[] {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
+function toEmbeddingArray(value: Prisma.JsonValue | null | undefined): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is number => typeof entry === "number");
+}
+
+function buildBlogEmbeddingInput(input: {
+  title: string;
+  summaryText: string;
+  contentText: string;
+  matchKeywords: string[];
+}) {
+  return truncate(
+    normalizeWhitespace(
+      `${input.title}\n\n${input.summaryText}\n\n${input.contentText}\n\n${input.matchKeywords.join(" ")}`
+    ),
+    MAX_EMBEDDING_INPUT_LENGTH
+  );
+}
+
+function buildQueryEmbeddingInput(input: { postTitle: string; postBodyText?: string }) {
+  return truncate(normalizeWhitespace(`${input.postTitle}\n\n${input.postBodyText || ""}`), 2_800);
+}
+
+function cosineSimilarity(left: number[], right: number[]) {
+  if (!left.length || !right.length || left.length !== right.length) {
+    return null;
+  }
+
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    dot += left[index]! * right[index]!;
+    leftNorm += left[index]! * left[index]!;
+    rightNorm += right[index]! * right[index]!;
+  }
+
+  if (!leftNorm || !rightNorm) {
+    return null;
+  }
+
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+}
+
 export function parseBlogFeed(xml: string): ParsedBlogFeedItem[] {
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
   const parsedItems: Array<ParsedBlogFeedItem | null> = items.map((match) => {
@@ -206,8 +256,13 @@ export function parseBlogFeed(xml: string): ParsedBlogFeedItem[] {
 function buildBlogReason(
   _blog: Pick<BlogPost, "title" | "url" | "summaryText">,
   overlappingTokens: string[],
-  matchScore: number
+  matchScore: number,
+  semanticScore: number | null
 ) {
+  if (semanticScore !== null && semanticScore >= 0.55) {
+    return "Semantic match is strong, so this article should deepen the same underlying topic naturally.";
+  }
+
   if (overlappingTokens.length) {
     return `Strong topic overlap on ${overlappingTokens.slice(0, 3).join(", ")}.`;
   }
@@ -219,13 +274,77 @@ function buildBlogReason(
   return `This article gives Johnny a fuller read-more resource if the reply needs it.`;
 }
 
-export function recommendBlogPost(input: {
+async function createQueryEmbedding(input: { postTitle: string; postBodyText?: string }) {
+  if (process.env.NODE_ENV === "test" || !process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  try {
+    return await createEmbedding(buildQueryEmbeddingInput(input), getEmbeddingModel());
+  } catch (error) {
+    console.error(
+      "Blog recommendation embedding lookup fell back to lexical matching:",
+      error instanceof Error ? error.message : error
+    );
+    return null;
+  }
+}
+
+function calculateLexicalMatch(
+  combinedText: string,
+  inputTokens: Set<string>,
+  blog: Pick<BlogPost, "title" | "summaryText" | "contentText" | "publishedAt" | "matchKeywords">
+) {
+  const titleTokens = new Set(meaningfulTokens(blog.title));
+  const summaryTokens = new Set(
+    meaningfulTokens(
+      `${blog.summaryText} ${blog.contentText.slice(0, 1200)} ${toKeywordArray(blog.matchKeywords).join(" ")}`
+    )
+  );
+  const overlappingTokens = [...inputTokens].filter(
+    (token) => titleTokens.has(token) || summaryTokens.has(token)
+  );
+  const titleOverlap =
+    overlappingTokens.filter((token) => titleTokens.has(token)).length / Math.max(titleTokens.size, 1);
+  const summaryOverlap =
+    overlappingTokens.filter((token) => summaryTokens.has(token)).length / Math.max(summaryTokens.size, 1);
+  const similarity = calculateTextSimilarity(
+    combinedText,
+    `${blog.title} ${blog.summaryText} ${toKeywordArray(blog.matchKeywords).join(" ")}`
+  );
+  const recencyDays = (Date.now() - blog.publishedAt.getTime()) / 86_400_000;
+  const recencyBoost = recencyDays <= 45 ? 0.05 : recencyDays <= 120 ? 0.02 : 0;
+  const titlePhraseBonus = combinedText.toLowerCase().includes(blog.title.toLowerCase()) ? 0.2 : 0;
+  const lexicalScore = clamp(
+    similarity * 0.35 + titleOverlap * 0.32 + summaryOverlap * 0.23 + recencyBoost + titlePhraseBonus,
+    0,
+    1
+  );
+
+  return {
+    lexicalScore,
+    overlappingTokens
+  };
+}
+
+export async function recommendBlogPost(input: {
   postTitle: string;
   postBodyText?: string;
   blogPosts: Array<
-    Pick<BlogPost, "id" | "title" | "url" | "summaryText" | "contentText" | "publishedAt" | "matchKeywords">
+    Pick<
+      BlogPost,
+      | "id"
+      | "title"
+      | "url"
+      | "summaryText"
+      | "contentText"
+      | "publishedAt"
+      | "matchKeywords"
+      | "semanticEmbedding"
+      | "semanticEmbeddingModel"
+    >
   >;
-}): BlogRecommendation | null {
+}): Promise<BlogRecommendation | null> {
   const combinedText = normalizeWhitespace(`${input.postTitle} ${input.postBodyText || ""}`);
   const inputTokens = new Set(meaningfulTokens(combinedText));
 
@@ -233,37 +352,28 @@ export function recommendBlogPost(input: {
     return null;
   }
 
+  const embeddingModel = getEmbeddingModel();
+  const queryEmbedding = await createQueryEmbedding(input);
   const ranked = input.blogPosts
     .map((blog) => {
-      const titleTokens = new Set(meaningfulTokens(blog.title));
-      const summaryTokens = new Set(
-        meaningfulTokens(`${blog.summaryText} ${blog.contentText.slice(0, 1200)} ${toKeywordArray(blog.matchKeywords).join(" ")}`)
-      );
-      const overlappingTokens = [...inputTokens].filter(
-        (token) => titleTokens.has(token) || summaryTokens.has(token)
-      );
-      const titleOverlap =
-        overlappingTokens.filter((token) => titleTokens.has(token)).length / Math.max(titleTokens.size, 1);
-      const summaryOverlap =
-        overlappingTokens.filter((token) => summaryTokens.has(token)).length /
-        Math.max(summaryTokens.size, 1);
-      const similarity = calculateTextSimilarity(
-        combinedText,
-        `${blog.title} ${blog.summaryText} ${toKeywordArray(blog.matchKeywords).join(" ")}`
-      );
-      const recencyDays = (Date.now() - blog.publishedAt.getTime()) / 86_400_000;
-      const recencyBoost = recencyDays <= 45 ? 0.05 : recencyDays <= 120 ? 0.02 : 0;
-      const titlePhraseBonus = combinedText.toLowerCase().includes(blog.title.toLowerCase()) ? 0.2 : 0;
-      const matchScore = clamp(
-        similarity * 0.35 + titleOverlap * 0.32 + summaryOverlap * 0.23 + recencyBoost + titlePhraseBonus,
-        0,
-        1
-      );
+      const { lexicalScore, overlappingTokens } = calculateLexicalMatch(combinedText, inputTokens, blog);
+      const blogEmbedding =
+        blog.semanticEmbeddingModel === embeddingModel ? toEmbeddingArray(blog.semanticEmbedding) : [];
+      const rawSemanticScore =
+        queryEmbedding && blogEmbedding.length
+          ? cosineSimilarity(queryEmbedding, blogEmbedding)
+          : null;
+      const semanticScore = rawSemanticScore === null ? null : clamp(rawSemanticScore, 0, 1);
+      const matchScore =
+        semanticScore === null
+          ? lexicalScore
+          : clamp(semanticScore * 0.72 + lexicalScore * 0.28, 0, 1);
 
       return {
         blog,
         matchScore,
-        overlappingTokens
+        overlappingTokens,
+        semanticScore
       };
     })
     .sort((left, right) => right.matchScore - left.matchScore);
@@ -280,12 +390,38 @@ export function recommendBlogPost(input: {
     url: best.blog.url,
     summaryText: best.blog.summaryText,
     matchScore: Number(best.matchScore.toFixed(2)),
-    reason: buildBlogReason(best.blog, best.overlappingTokens, best.matchScore)
+    reason: buildBlogReason(best.blog, best.overlappingTokens, best.matchScore, best.semanticScore)
   };
 }
 
 export function buildReadMoreSuggestion(blog: Pick<BlogRecommendation, "title" | "url">) {
   return `If you'd want to read more, I wrote a fuller piece on ${blog.title} here: ${blog.url}`;
+}
+
+async function createBlogEmbedding(item: ParsedBlogFeedItem) {
+  if (process.env.NODE_ENV === "test" || !process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  try {
+    const embedding = await createEmbedding(
+      buildBlogEmbeddingInput({
+        title: item.title,
+        summaryText: item.summaryText,
+        contentText: item.contentText,
+        matchKeywords: item.matchKeywords
+      }),
+      getEmbeddingModel()
+    );
+
+    return embedding;
+  } catch (error) {
+    console.error(
+      "Blog embedding generation failed; semantic matching will fall back for this article:",
+      error instanceof Error ? error.message : error
+    );
+    return null;
+  }
 }
 
 async function fetchBlogFeedXml(feedUrl: string) {
@@ -379,6 +515,8 @@ export async function syncRunFitCoachBlogPosts(options?: {
       const existing = await prisma.blogPost.findUnique({
         where: { url: item.url }
       });
+      const slug = slugFromUrl(item.url);
+      const embeddingModel = getEmbeddingModel();
 
       if (existing) {
         const shouldCountUpdate =
@@ -389,20 +527,38 @@ export async function syncRunFitCoachBlogPosts(options?: {
           existing.publishedAt.getTime() !== item.publishedAt.getTime() ||
           JSON.stringify(toKeywordArray(existing.matchKeywords)) !== JSON.stringify(item.matchKeywords) ||
           existing.sourceFeedUrl !== feedUrl ||
-          existing.slug !== slugFromUrl(item.url);
+          existing.slug !== slug;
+        const shouldRefreshEmbedding =
+          shouldCountUpdate ||
+          !toEmbeddingArray(existing.semanticEmbedding).length ||
+          existing.semanticEmbeddingModel !== embeddingModel;
 
         if (shouldCountUpdate) {
+          const embedding = shouldRefreshEmbedding ? await createBlogEmbedding(item) : null;
           await prisma.blogPost.update({
             where: { id: existing.id },
             data: {
-              slug: slugFromUrl(item.url),
+              slug,
               title: item.title,
               author: item.author ?? null,
               publishedAt: item.publishedAt,
               summaryText: item.summaryText,
               contentText: item.contentText,
               matchKeywords: item.matchKeywords as Prisma.InputJsonValue,
+              semanticEmbedding: embedding ? (embedding as Prisma.InputJsonValue) : Prisma.JsonNull,
+              semanticEmbeddingModel: embedding ? embeddingModel : null,
+              semanticEmbeddingUpdatedAt: embedding ? new Date() : null,
               sourceFeedUrl: feedUrl
+            }
+          });
+        } else if (shouldRefreshEmbedding) {
+          const embedding = await createBlogEmbedding(item);
+          await prisma.blogPost.update({
+            where: { id: existing.id },
+            data: {
+              semanticEmbedding: embedding ? (embedding as Prisma.InputJsonValue) : Prisma.JsonNull,
+              semanticEmbeddingModel: embedding ? embeddingModel : null,
+              semanticEmbeddingUpdatedAt: embedding ? new Date() : null
             }
           });
         }
@@ -414,16 +570,20 @@ export async function syncRunFitCoachBlogPosts(options?: {
         continue;
       }
 
+      const embedding = await createBlogEmbedding(item);
       await prisma.blogPost.create({
         data: {
           url: item.url,
-          slug: slugFromUrl(item.url),
+          slug,
           title: item.title,
           author: item.author ?? null,
           publishedAt: item.publishedAt,
           summaryText: item.summaryText,
           contentText: item.contentText,
           matchKeywords: item.matchKeywords as Prisma.InputJsonValue,
+          semanticEmbedding: embedding ? (embedding as Prisma.InputJsonValue) : Prisma.JsonNull,
+          semanticEmbeddingModel: embedding ? embeddingModel : null,
+          semanticEmbeddingUpdatedAt: embedding ? new Date() : null,
           sourceFeedUrl: feedUrl
         }
       });

@@ -9,6 +9,12 @@ export function CommentReplyEditor(props: {
   permalink: string;
   initialDraft: string;
   alternateDraft?: string;
+  recommendedBlog?: {
+    title: string;
+    url: string;
+    reason?: string | null;
+  };
+  allowBlogLinkAppend: boolean;
   safetyWarnings: string[];
   directSubmitEnabled: boolean;
 }) {
@@ -16,6 +22,9 @@ export function CommentReplyEditor(props: {
   const [text, setText] = useState(props.initialDraft);
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const blogReadMoreHint = props.recommendedBlog
+    ? `If you'd want to read more, I wrote a fuller piece on ${props.recommendedBlog.title} here: ${props.recommendedBlog.url}`
+    : "";
 
   async function callEndpoint(
     path: string,
@@ -120,6 +129,35 @@ export function CommentReplyEditor(props: {
                 Use alternate draft
               </button>
             </div>
+          </div>
+        ) : null}
+
+        {props.recommendedBlog ? (
+          <div className="notice">
+            <strong>Related RunFitCoach blog</strong>
+            <div style={{ marginTop: 8 }}>
+              <a href={props.recommendedBlog.url} target="_blank" rel="noreferrer">
+                {props.recommendedBlog.title}
+              </a>
+            </div>
+            {props.recommendedBlog.reason ? (
+              <div style={{ marginTop: 8 }}>{props.recommendedBlog.reason}</div>
+            ) : null}
+            {props.allowBlogLinkAppend ? (
+              <div style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="button-ghost"
+                  onClick={() => setText((current) => `${current.trim()}\n\n${blogReadMoreHint}`.trim())}
+                >
+                  Append read-more link
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: 12 }} className="muted">
+                Kept as internal context only because this subreddit is set to no-promo.
+              </div>
+            )}
           </div>
         ) : null}
 

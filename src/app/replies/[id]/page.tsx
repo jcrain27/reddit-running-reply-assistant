@@ -95,6 +95,16 @@ export default async function ReplyDetailPage({
             permalink={candidate.permalink}
             initialDraft={latestDraft.humanEditedText || latestDraft.draftText}
             alternateDraft={latestDraft.alternateDraftText || undefined}
+            recommendedBlog={
+              latestDraft.recommendedBlogPost
+                ? {
+                    title: latestDraft.recommendedBlogPost.title,
+                    url: latestDraft.recommendedBlogPost.url,
+                    reason: latestDraft.recommendedBlogReason
+                  }
+                : undefined
+            }
+            allowBlogLinkAppend={Boolean(config?.allowCTA && !config?.strictNoPromo)}
             safetyWarnings={Array.isArray(latestDraft.safetyWarnings) ? (latestDraft.safetyWarnings as string[]) : []}
             directSubmitEnabled={Boolean(appSettings.enableDirectSubmit && config?.allowDirectSubmit)}
           />
@@ -130,6 +140,28 @@ export default async function ReplyDetailPage({
                 Alternate Draft
               </h2>
               <div className="draft-box">{latestDraft.alternateDraftText}</div>
+            </div>
+          ) : null}
+
+          {latestDraft.recommendedBlogPost ? (
+            <div className="panel">
+              <h2 className="page-title" style={{ fontSize: "1.35rem" }}>
+                Matched Blog Context
+              </h2>
+              <div className="draft-box">
+                <strong>{latestDraft.recommendedBlogPost.title}</strong>
+                <div style={{ marginTop: 10 }}>{latestDraft.recommendedBlogPost.summaryText}</div>
+                {latestDraft.recommendedBlogReason ? (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Why it matched:</strong> {latestDraft.recommendedBlogReason}
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 10 }}>
+                  <a href={latestDraft.recommendedBlogPost.url} target="_blank" rel="noreferrer">
+                    {latestDraft.recommendedBlogPost.url}
+                  </a>
+                </div>
+              </div>
             </div>
           ) : null}
 
